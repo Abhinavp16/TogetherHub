@@ -1,0 +1,49 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#6366F1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8B5CF6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F8FAFC;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E2E8F0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="200" height="200" rx="40" fill="url(#bgGradient)" />
+  
+  <!-- Main logo container -->
+  <rect x="25" y="25" width="150" height="150" rx="30" fill="url(#logoGradient)" />
+  
+  <!-- Central hub/cube - larger and more prominent -->
+  <path d="M100 50L120 70L100 90L80 70L100 50Z" fill="white" opacity="0.95" stroke="white" stroke-width="1"/>
+  <path d="M100 110L120 130L100 150L80 130L100 110Z" fill="white" opacity="0.8" stroke="white" stroke-width="1"/>
+  
+  <!-- Connecting people/nodes - larger -->
+  <circle cx="60" cy="100" r="12" fill="white" opacity="0.9" />
+  <circle cx="140" cy="100" r="12" fill="white" opacity="0.9" />
+  
+  <!-- Connection lines - more prominent -->
+  <path d="M72 100H80M120 100H128" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M88 65L78 85M112 65L122 85M88 135L78 115M112 135L122 115" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  
+  <!-- Additional connection nodes -->
+  <circle cx="100" cy="40" r="6" fill="white" opacity="0.7" />
+  <circle cx="100" cy="160" r="6" fill="white" opacity="0.7" />
+  <circle cx="45" cy="70" r="4" fill="white" opacity="0.6" />
+  <circle cx="155" cy="70" r="4" fill="white" opacity="0.6" />
+  <circle cx="45" cy="130" r="4" fill="white" opacity="0.6" />
+  <circle cx="155" cy="130" r="4" fill="white" opacity="0.6" />
+  
+  <!-- Connecting lines to additional nodes -->
+  <path d="M100 46L100 50M100 150L100 154" stroke="white" stroke-width="1.5" opacity="0.5"/>
+  <path d="M49 74L56 88M151 74L144 88M49 126L56 112M151 126L144 112" stroke="white" stroke-width="1" opacity="0.4"/>
+  
+  <!-- Floating particles effect -->
+  <circle cx="110" cy="55" r="2" fill="white" opacity="0.8" />
+  <circle cx="90" cy="145" r="2" fill="white" opacity="0.6" />
+  <circle cx="125" cy="85" r="1.5" fill="white" opacity="0.7" />
+  <circle cx="75" cy="115" r="1.5" fill="white" opacity="0.5" />
+</svg>
