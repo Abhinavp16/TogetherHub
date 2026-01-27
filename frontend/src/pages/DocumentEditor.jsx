@@ -2,32 +2,62 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
-import { 
-  Save, Share, Download, Upload, FileText, History, 
+import {
+  Save, Share, Download, Upload, FileText, History,
   MessageSquare, Printer, Copy, Undo, Redo, Search,
   FileDown, Eye, EyeOff, ChevronDown
 } from 'lucide-react'
 import UserPresence from '../components/Collaboration/UserPresence'
 import { useCollaboration } from '../hooks/useCollaboration'
+import { useAuth } from '../contexts/AuthContext'
+import { documentAPI } from '../services/api'
+import toast from 'react-hot-toast'
 
 const DocumentEditor = () => {
-  const { roomId } = useParams()
-  const [content, setContent] = useState('')
-  const [title, setTitle] = useState('Untitled Document')
-  const [showVersionHistory, setShowVersionHistory] = useState(false)
-  const [showComments, setShowComments] = useState(false)
-  const [versions, setVersions] = useState([])
-  const [comments, setComments] = useState([])
-  const [newComment, setNewComment] = useState('')
-  const [wordCount, setWordCount] = useState(0)
-  const [charCount, setCharCount] = useState(0)
-  const [showStats, setShowStats] = useState(false)
-  const [showExportMenu, setShowExportMenu] = useState(false)
-  const [autoSave, setAutoSave] = useState(true)
-  const [lastSaved, setLastSaved] = useState(null)
-  const quillRef = useRef()
-  
-  const { users, isConnected } = useCollaboration(roomId, 'document')
+  const { user } = useAuth()
+  const { socket, users, isConnected, sendMessage, joinRoom } = useCollaboration(roomId, 'document')
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  useEffect(() => {
+    const fetchDocument = async () => {
+      try {
+        const response = await documentAPI.getDocument(roomId)
+        const doc = response.data
+        setTitle(doc.title)
+        setContent(doc.content)
+
+        if (user) {
+          joinRoom({
+            id: user.id,
+            name: user.name,
+            avatar: user.avatar
+          })
+        }
+      } catch (error) {
+        toast.error('Failed to load document')
+      } finally {
+        setIsInitialLoad(false)
+      }
+    }
+
+    if (roomId) {
+      fetchDocument()
+    }
+  }, [roomId, user, joinRoom])
+
+  useEffect(() => {
+    if (!socket) return
+
+    socket.on('receive-update', (data) => {
+      if (data.type === 'document') {
+        setContent(data.content)
+      }
+    })
+
+    return () => {
+      socket.off('receive-update')
+    }
+  }, [socket])
 
   const modules = {
     toolbar: [
@@ -36,8 +66,8 @@ const DocumentEditor = () => {
       [{ 'size': ['10px', '12px', '14px', '16px', '18px', '24px', '32px', '48px'] }],
       ['bold', 'italic', 'underline', 'strike'],
       [{ 'color': [] }, { 'background': [] }],
-      [{ 'script': 'sub'}, { 'script': 'super' }],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'indent': '-1'}, { 'indent': '+1' }],
+      [{ 'script': 'sub' }, { 'script': 'super' }],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
       [{ 'align': [] }],
       ['blockquote', 'code-block'],
       ['link', 'image', 'video'],
@@ -61,34 +91,33 @@ const DocumentEditor = () => {
   // Auto-save functionality
   useEffect(() => {
     if (!autoSave || !content) return
-    
+
     const timer = setTimeout(() => {
       handleSave(true)
     }, 3000)
-    
+
     return () => clearTimeout(timer)
   }, [content, title, autoSave])
 
-  const handleContentChange = (value) => {
+  const handleContentChange = (value, delta, source) => {
     setContent(value)
-    // TODO: Implement Yjs synchronization
+    if (source === 'user') {
+      sendMessage('send-update', { roomId, content: value, type: 'document' })
+    }
   }
 
-  const handleSave = (isAutoSave = false) => {
-    const timestamp = new Date().toISOString()
-    const version = {
-      id: Date.now(),
-      title,
-      content,
-      timestamp,
-      author: 'Current User'
-    }
-    
-    setVersions(prev => [version, ...prev].slice(0, 10))
-    setLastSaved(timestamp)
-    
-    if (!isAutoSave) {
-      console.log('Document saved manually:', { title, content })
+  const handleSave = async (isAutoSave = false) => {
+    try {
+      await documentAPI.updateDocument(roomId, { title, content })
+      const timestamp = new Date().toISOString()
+      setLastSaved(timestamp)
+      if (!isAutoSave) {
+        toast.success('Document saved')
+      }
+    } catch (error) {
+      if (!isAutoSave) {
+        toast.error('Failed to save document')
+      }
     }
   }
 
@@ -123,7 +152,7 @@ const DocumentEditor = () => {
       .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
       .replace(/<br\s*\/?>/g, '\n')
       .replace(/<[^>]*>/g, '')
-    
+
     const blob = new Blob([markdown], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -188,14 +217,14 @@ const DocumentEditor = () => {
 
   const handleAddComment = () => {
     if (!newComment.trim()) return
-    
+
     const comment = {
       id: Date.now(),
       text: newComment,
       author: 'Current User',
       timestamp: new Date().toISOString()
     }
-    
+
     setComments(prev => [...prev, comment])
     setNewComment('')
   }
@@ -238,7 +267,7 @@ const DocumentEditor = () => {
               className="text-2xl font-bold bg-transparent border-none outline-none flex-1 text-slate-800 dark:text-slate-100 placeholder-slate-400"
               placeholder="Untitled Document"
             />
-            
+
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700">
                 <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
@@ -246,13 +275,13 @@ const DocumentEditor = () => {
                   {isConnected ? 'Connected' : 'Disconnected'}
                 </span>
               </div>
-              
+
               {lastSaved && (
                 <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full">
                   Saved {new Date(lastSaved).toLocaleTimeString()}
                 </span>
               )}
-              
+
               <UserPresence users={users} />
             </div>
           </div>
@@ -274,9 +303,9 @@ const DocumentEditor = () => {
               >
                 <Redo size={18} />
               </button>
-              
+
               <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-2" />
-              
+
               <button
                 onClick={handleFind}
                 className="p-2.5 hover:bg-white dark:hover:bg-slate-600 rounded-lg transition-all duration-200 text-slate-600 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md"
@@ -298,9 +327,9 @@ const DocumentEditor = () => {
               >
                 <Printer size={18} />
               </button>
-              
+
               <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-2" />
-              
+
               <button
                 onClick={() => setShowStats(!showStats)}
                 className="p-2.5 hover:bg-white dark:hover:bg-slate-600 rounded-lg transition-all duration-200 text-slate-600 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md"
@@ -365,7 +394,7 @@ const DocumentEditor = () => {
                 <History size={16} />
                 <span>History</span>
               </button>
-              
+
               <button
                 onClick={() => setShowComments(!showComments)}
                 className="flex items-center space-x-2 px-4 py-2.5 bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 text-slate-700 dark:text-white rounded-xl hover:bg-slate-50 dark:hover:bg-slate-500 hover:shadow-md transition-all duration-200 font-medium"
@@ -373,7 +402,7 @@ const DocumentEditor = () => {
                 <MessageSquare size={16} />
                 <span>Comments ({comments.length})</span>
               </button>
-              
+
               <div className="relative">
                 <button
                   onClick={() => setShowExportMenu(!showExportMenu)}
@@ -383,7 +412,7 @@ const DocumentEditor = () => {
                   <span>Export</span>
                   <ChevronDown size={14} />
                 </button>
-                
+
                 {showExportMenu && (
                   <div className="absolute bottom-full mb-2 left-0 glass-card py-2 min-w-[180px] z-10 shadow-xl">
                     <button
@@ -417,7 +446,7 @@ const DocumentEditor = () => {
                   </div>
                 )}
               </div>
-              
+
               <label className="flex items-center space-x-2 px-4 py-2.5 bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 text-slate-700 dark:text-white rounded-xl hover:bg-slate-50 dark:hover:bg-slate-500 hover:shadow-md transition-all duration-200 cursor-pointer font-medium">
                 <Upload size={16} />
                 <span>Import</span>
@@ -438,7 +467,7 @@ const DocumentEditor = () => {
                 <Save size={16} />
                 <span>Save</span>
               </button>
-              
+
               <button
                 onClick={handleShare}
                 className="flex items-center space-x-2 px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl hover:from-emerald-600 hover:to-teal-600 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
@@ -496,7 +525,7 @@ const DocumentEditor = () => {
             <MessageSquare size={20} className="text-purple-600 dark:text-purple-400" />
             <span>Comments</span>
           </h3>
-          
+
           <div className="mb-6">
             <textarea
               value={newComment}

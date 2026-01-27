@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, FileText, Code, PenTool, UserPlus, XCircle, Check, Users } from 'lucide-react';
+import { roomAPI } from '../../services/api';
+import toast from 'react-hot-toast';
 
 const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
   const modalRef = useRef(null);
@@ -12,6 +14,7 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
   });
   const [emailInput, setEmailInput] = useState('');
   const [isValidEmail, setIsValidEmail] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -21,17 +24,20 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.name.trim()) {
-      onCreate({
-        ...formData,
-        id: Date.now().toString(),
-        participants: 1,
-        lastActivity: 'Just now',
-        owner: 'You'
-      });
-      onClose();
+      setLoading(true);
+      try {
+        const response = await roomAPI.createRoom(formData);
+        toast.success('Room created successfully');
+        onCreate(response.data);
+        onClose();
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to create room');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -42,12 +48,12 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
         onClose();
       }
     }
-    
+
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.body.style.overflow = 'hidden';
     }
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.body.style.overflow = 'unset';
@@ -89,7 +95,7 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div 
+      <div
         ref={modalRef}
         className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto"
       >
@@ -98,7 +104,7 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create New Room</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">Start collaborating with your team</p>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
             aria-label="Close modal"
@@ -106,7 +112,7 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
             <X size={20} />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-1">
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -145,32 +151,31 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
             </span>
             <div className="grid grid-cols-3 gap-3">
               {[
-                { 
-                  value: 'document', 
-                  label: 'Document', 
+                {
+                  value: 'document',
+                  label: 'Document',
                   icon: <FileText size={18} className="text-blue-500" />,
                   description: 'Collaborate on rich text documents'
                 },
-                { 
-                  value: 'code', 
-                  label: 'Code', 
+                {
+                  value: 'code',
+                  label: 'Code',
                   icon: <Code size={18} className="text-green-500" />,
                   description: 'Write and review code together'
                 },
-                { 
-                  value: 'whiteboard', 
-                  label: 'Whiteboard', 
+                {
+                  value: 'whiteboard',
+                  label: 'Whiteboard',
                   icon: <PenTool size={18} className="text-purple-500" />,
                   description: 'Draw and brainstorm ideas'
                 }
               ].map((type) => (
-                <label 
+                <label
                   key={type.value}
-                  className={`relative p-4 border rounded-lg cursor-pointer transition-all ${
-                    formData.type === type.value 
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500' 
-                      : 'border-gray-300 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                  }`}
+                  className={`relative p-4 border rounded-lg cursor-pointer transition-all ${formData.type === type.value
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                    }`}
                 >
                   <input
                     type="radio"
@@ -181,11 +186,10 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
                     className="sr-only"
                   />
                   <div className="flex flex-col items-center text-center space-y-2">
-                    <div className={`p-2 rounded-lg ${
-                      formData.type === type.value 
-                        ? 'bg-blue-100 dark:bg-blue-900/40' 
-                        : 'bg-gray-100 dark:bg-gray-700'
-                    }`}>
+                    <div className={`p-2 rounded-lg ${formData.type === type.value
+                      ? 'bg-blue-100 dark:bg-blue-900/40'
+                      : 'bg-gray-100 dark:bg-gray-700'
+                      }`}>
                       {type.icon}
                     </div>
                     <span className="text-sm font-medium">{type.label}</span>
@@ -222,17 +226,16 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
                 <label htmlFor="isPrivate" className="ml-3 flex flex-col">
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Make this room private</span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {formData.isPrivate 
-                      ? 'Only invited members can join' 
+                    {formData.isPrivate
+                      ? 'Only invited members can join'
                       : 'Anyone with the link can join'}
                   </span>
                 </label>
               </div>
-              <div className={`px-2 py-1 text-xs rounded-full ${
-                formData.isPrivate 
-                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' 
-                  : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-              }`}>
+              <div className={`px-2 py-1 text-xs rounded-full ${formData.isPrivate
+                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                }`}>
                 {formData.isPrivate ? 'Private' : 'Public'}
               </div>
             </div>
@@ -247,7 +250,7 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
                     {formData.invites.length} {formData.invites.length === 1 ? 'person' : 'people'} invited
                   </span>
                 </div>
-                
+
                 <div className="flex space-x-2">
                   <div className="flex-1 relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -265,11 +268,10 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
                         }
                       }}
                       onKeyDown={handleKeyDown}
-                      className={`block w-full pl-10 pr-3 py-2 text-sm rounded-lg border ${
-                        !isValidEmail && emailInput 
-                          ? 'border-red-300 text-red-900 placeholder-red-300 focus:outline-none focus:ring-red-500 focus:border-red-500' 
-                          : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'
-                      }`}
+                      className={`block w-full pl-10 pr-3 py-2 text-sm rounded-lg border ${!isValidEmail && emailInput
+                        ? 'border-red-300 text-red-900 placeholder-red-300 focus:outline-none focus:ring-red-500 focus:border-red-500'
+                        : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'
+                        }`}
                       placeholder="Enter email addresses"
                     />
                     {!isValidEmail && emailInput && (
@@ -282,11 +284,10 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
                     type="button"
                     onClick={handleAddInvite}
                     disabled={!emailInput || !isValidEmail}
-                    className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white ${
-                      !emailInput || !isValidEmail
-                        ? 'bg-blue-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                    }`}
+                    className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white ${!emailInput || !isValidEmail
+                      ? 'bg-blue-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                      }`}
                   >
                     Add
                   </button>
@@ -299,8 +300,8 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
                     </h4>
                     <div className="flex flex-wrap gap-2">
                       {formData.invites.map((email) => (
-                        <div 
-                          key={email} 
+                        <div
+                          key={email}
                           className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200"
                         >
                           <span className="mr-1.5">👤</span>
@@ -333,12 +334,11 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
               </button>
               <button
                 type="submit"
-                disabled={!formData.name.trim()}
-                className={`px-5 py-2.5 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${
-                  !formData.name.trim() ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                disabled={!formData.name.trim() || loading}
+                className={`px-5 py-2.5 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${!formData.name.trim() || loading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
               >
-                Create Room
+                {loading ? 'Creating...' : 'Create Room'}
               </button>
             </div>
             {formData.invites.length > 0 && (

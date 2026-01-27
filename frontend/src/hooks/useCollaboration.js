@@ -11,9 +11,7 @@ export const useCollaboration = (roomId, type) => {
 
     // Initialize Socket.IO connection
     const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000'
-    const newSocket = io(serverUrl, {
-      query: { roomId, type }
-    })
+    const newSocket = io(serverUrl)
 
     newSocket.on('connect', () => {
       setIsConnected(true)

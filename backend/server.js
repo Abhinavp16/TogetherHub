@@ -33,24 +33,55 @@ app.use('/api/documents', require('./routes/documents'));
 app.use('/api/rooms', require('./routes/rooms'));
 
 // Socket.io Logic
+const roomUsers = new Map();
+
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    socket.on('join-document', (documentId) => {
-        socket.join(documentId);
-        console.log(`User ${socket.id} joined document: ${documentId}`);
+    socket.on('join-room', ({ roomId, user }) => {
+        socket.join(roomId);
+
+        if (!roomUsers.has(roomId)) {
+            roomUsers.set(roomId, new Set());
+        }
+
+        const userData = { ...user, socketId: socket.id };
+        roomUsers.get(roomId).add(JSON.stringify(userData));
+
+        // Send current users in room to the new user
+        const usersInRoom = Array.from(roomUsers.get(roomId)).map(u => JSON.parse(u));
+        io.to(roomId).emit('users-update', usersInRoom);
+
+        console.log(`User ${user.name} joined room: ${roomId}`);
     });
 
-    socket.on('document-update', (data) => {
-        socket.to(data.documentId).emit('document-receive-update', data.content);
+    socket.on('send-update', ({ roomId, content, type }) => {
+        socket.to(roomId).emit('receive-update', { content, type });
     });
 
-    socket.on('cursor-move', (data) => {
-        socket.to(data.documentId).emit('cursor-receive-move', {
-            userId: data.userId,
-            userName: data.userName,
-            cursor: data.cursor
+    socket.on('cursor-move', ({ roomId, userId, userName, cursor }) => {
+        socket.to(roomId).emit('cursor-receive-move', {
+            userId,
+            userName,
+            cursor
         });
+    });
+
+    socket.on('disconnecting', () => {
+        for (const roomId of socket.rooms) {
+            if (roomUsers.has(roomId)) {
+                const users = roomUsers.get(roomId);
+                for (const u of users) {
+                    const userData = JSON.parse(u);
+                    if (userData.socketId === socket.id) {
+                        users.delete(u);
+                        break;
+                    }
+                }
+                const updatedUsers = Array.from(roomUsers.get(roomId)).map(u => JSON.parse(u));
+                io.to(roomId).emit('users-update', updatedUsers);
+            }
+        }
     });
 
     socket.on('disconnect', () => {
