@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { Pen, Eraser, Square, Circle, Type, Undo, Redo, Save, Share, Palette } from 'lucide-react'
+import { documentAPI } from '../services/api'
 import UserPresence from '../components/Collaboration/UserPresence'
 import { useCollaboration } from '../hooks/useCollaboration'
 import { useAuth } from '../contexts/AuthContext'
 
 const Whiteboard = () => {
   const { roomId } = useParams()
+  const navigate = useNavigate()
   const canvasRef = useRef()
   const [tool, setTool] = useState('pen')
   const [color, setColor] = useState('#000000')
@@ -14,10 +16,28 @@ const Whiteboard = () => {
   const [isDrawing, setIsDrawing] = useState(false)
 
   const { user } = useAuth()
-  const { socket, users, isConnected, sendMessage, joinRoom } = useCollaboration(roomId, 'whiteboard')
+  useEffect(() => {
+    if (user && roomId === 'new') {
+      const createNew = async () => {
+        try {
+          const res = await documentAPI.createDocument({
+            title: 'Untitled Whiteboard',
+            content: '',
+            type: 'whiteboard'
+          })
+          navigate(`/whiteboard/${res.data._id}`, { replace: true })
+        } catch (error) {
+          console.error('Failed to create whiteboard', error)
+        }
+      }
+      createNew()
+    }
+  }, [roomId, user, navigate])
+
+  const { socket, users, isConnected, sendMessage, joinRoom } = useCollaboration(roomId !== 'new' ? roomId : null, 'whiteboard')
 
   useEffect(() => {
-    if (user && roomId) {
+    if (user && roomId && roomId !== 'new') {
       joinRoom({
         id: user.id,
         name: user.name,
@@ -27,7 +47,7 @@ const Whiteboard = () => {
   }, [user, roomId, joinRoom])
 
   useEffect(() => {
-    if (!socket) return
+    if (!socket || roomId === 'new') return
 
     socket.on('receive-update', (data) => {
       if (data.type === 'whiteboard') {
@@ -172,8 +192,8 @@ const Whiteboard = () => {
                     key={t.id}
                     onClick={() => setTool(t.id)}
                     className={`p-2 rounded-lg transition-colors ${tool === t.id
-                        ? 'bg-primary-600 text-white'
-                        : 'text-gray-600 hover:bg-gray-200'
+                      ? 'bg-primary-600 text-white'
+                      : 'text-gray-600 hover:bg-gray-200'
                       }`}
                     title={t.label}
                   >

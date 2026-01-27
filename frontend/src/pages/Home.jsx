@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom'
 import { FileText, Code, PenTool, Users, Plus, Sparkles, Zap, Clock, TrendingUp, Bell, ArrowRight, Star, Activity } from 'lucide-react'
 import { useNotifications } from '../contexts/NotificationContext'
+import { useState, useEffect } from 'react'
+import { documentAPI } from '../services/api'
+import toast from 'react-hot-toast'
 
 const Home = () => {
   const { success, error, warning, info } = useNotifications()
@@ -40,35 +43,32 @@ const Home = () => {
     }
   ]
 
-  const recentRooms = [
-    {
-      id: 1,
-      title: 'Project Documentation',
-      type: 'document',
-      icon: FileText,
-      lastEdited: '2 hours ago',
-      collaborators: 3,
-      gradient: 'from-blue-500 to-indigo-500'
-    },
-    {
-      id: 2,
-      title: 'React Components',
-      type: 'code',
-      icon: Code,
-      lastEdited: '1 day ago',
-      collaborators: 2,
-      gradient: 'from-green-500 to-emerald-500'
-    },
-    {
-      id: 3,
-      title: 'System Architecture',
-      type: 'whiteboard',
-      icon: PenTool,
-      lastEdited: '3 hours ago',
-      collaborators: 5,
-      gradient: 'from-purple-500 to-pink-500'
+  const [recentRooms, setRecentRooms] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchRecent = async () => {
+      try {
+        const response = await documentAPI.getDocuments()
+        // Map documents to common room format
+        const docs = response.data.slice(0, 3).map(doc => ({
+          id: doc._id,
+          title: doc.title,
+          type: doc.type,
+          icon: doc.type === 'code' ? Code : doc.type === 'whiteboard' ? PenTool : FileText,
+          lastEdited: new Date(doc.updatedAt).toLocaleDateString(),
+          collaborators: (doc.collaborators?.length || 0) + 1,
+          gradient: doc.type === 'code' ? 'from-green-500 to-emerald-500' : doc.type === 'whiteboard' ? 'from-purple-500 to-pink-500' : 'from-blue-500 to-indigo-500'
+        }))
+        setRecentRooms(docs)
+      } catch (error) {
+        // Silent error for home page recent rooms
+      } finally {
+        setLoading(false)
+      }
     }
-  ]
+    fetchRecent()
+  }, [])
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -254,8 +254,9 @@ const Home = () => {
           {recentRooms.map((room, index) => {
             const Icon = room.icon
             return (
-              <div
+              <Link
                 key={room.id}
+                to={`/${room.type}/${room.id}`}
                 className="room-card-modern animate-fade-in-up group p-3 rounded-lg"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
@@ -282,7 +283,7 @@ const Home = () => {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             )
           })}
         </div>

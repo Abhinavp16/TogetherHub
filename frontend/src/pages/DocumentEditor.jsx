@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import {
@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 
 const DocumentEditor = () => {
   const { roomId } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [content, setContent] = useState('')
   const [title, setTitle] = useState('Untitled Document')
@@ -62,7 +63,25 @@ const DocumentEditor = () => {
   }, [roomId, user, joinRoom])
 
   useEffect(() => {
-    if (!socket) return
+    if (user && roomId === 'new') {
+      const createNew = async () => {
+        try {
+          const res = await documentAPI.createDocument({
+            title: 'Untitled Document',
+            content: '',
+            type: 'document'
+          })
+          navigate(`/document/${res.data._id}`, { replace: true })
+        } catch (error) {
+          toast.error('Failed to create document')
+        }
+      }
+      createNew()
+    }
+  }, [roomId, user, navigate])
+
+  useEffect(() => {
+    if (!socket || roomId === 'new') return
 
     socket.on('receive-update', (data) => {
       if (data.type === 'document') {
