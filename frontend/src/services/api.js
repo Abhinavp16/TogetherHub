@@ -53,6 +53,13 @@ export const roomAPI = {
   leaveRoom: (id) => api.post(`/rooms/${id}/leave`)
 }
 
+// Auth API
+export const authAPI = {
+  login: (credentials) => api.post('/auth/login', credentials),
+  signup: (userData) => api.post('/auth/signup', userData),
+  getMe: () => api.get('/auth/me')
+}
+
 // User API
 export const userAPI = {
   getProfile: () => api.get('/users/profile'),

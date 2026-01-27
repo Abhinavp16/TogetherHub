@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
+import { authAPI } from '../services/api'
 
 const AuthContext = createContext(null)
 
@@ -16,67 +17,53 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem('user')
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
+    const initAuth = async () => {
+      const token = localStorage.getItem('authToken')
+      if (token) {
+        try {
+          const response = await authAPI.getMe()
+          setUser(response.data)
+        } catch (error) {
+          localStorage.removeItem('authToken')
+          localStorage.removeItem('user')
+        }
+      }
+      setLoading(false)
     }
-    setLoading(false)
+    initAuth()
   }, [])
 
-  const login = async (emailOrUsername, password) => {
+  const login = async (email, password) => {
     try {
-      // Check for demo credentials
-      if (emailOrUsername === 'Abhinav16' && password === '123456') {
-        const demoUser = {
-          id: 1,
-          email: 'abhinav@togetherhub.com',
-          username: 'Abhinav16',
-          name: 'Abhinav Pandey',
-          avatar: 'https://ui-avatars.com/api/?name=Abhinav+Pandey&background=4f46e5'
-        }
-        
-        localStorage.setItem('user', JSON.stringify(demoUser))
-        setUser(demoUser)
-        toast.success('Welcome back, Abhinav!')
-        return { success: true }
-      }
-      
-      // Regular login simulation
-      const mockUser = {
-        id: Date.now(),
-        email: emailOrUsername,
-        name: emailOrUsername.split('@')[0],
-        avatar: `https://ui-avatars.com/api/?name=${emailOrUsername.split('@')[0]}&background=random`
-      }
-      
-      localStorage.setItem('user', JSON.stringify(mockUser))
-      setUser(mockUser)
-      toast.success('Login successful!')
+      const response = await authAPI.login({ email, password })
+      const { user, token } = response.data
+
+      localStorage.setItem('authToken', token)
+      localStorage.setItem('user', JSON.stringify(user))
+      setUser(user)
+      toast.success(`Welcome back, ${user.name}!`)
       return { success: true }
     } catch (error) {
-      toast.error('Login failed')
-      return { success: false, error: error.message }
+      const message = error.response?.data?.message || 'Login failed'
+      toast.error(message)
+      return { success: false, error: message }
     }
   }
 
   const signup = async (name, email, password) => {
     try {
-      // Simulate API call
-      const mockUser = {
-        id: Date.now(),
-        email,
-        name,
-        avatar: `https://ui-avatars.com/api/?name=${name}&background=random`
-      }
-      
-      localStorage.setItem('user', JSON.stringify(mockUser))
-      setUser(mockUser)
+      const response = await authAPI.signup({ name, email, password })
+      const { user, token } = response.data
+
+      localStorage.setItem('authToken', token)
+      localStorage.setItem('user', JSON.stringify(user))
+      setUser(user)
       toast.success('Account created successfully!')
       return { success: true }
     } catch (error) {
-      toast.error('Signup failed')
-      return { success: false, error: error.message }
+      const message = error.response?.data?.message || 'Signup failed'
+      toast.error(message)
+      return { success: false, error: message }
     }
   }
 
@@ -90,7 +77,7 @@ export const AuthProvider = ({ children }) => {
         avatar: 'https://ui-avatars.com/api/?name=Google+User&background=4285f4',
         provider: 'google'
       }
-      
+
       localStorage.setItem('user', JSON.stringify(mockUser))
       setUser(mockUser)
       toast.success('Logged in with Google!')
@@ -111,7 +98,7 @@ export const AuthProvider = ({ children }) => {
         avatar: 'https://ui-avatars.com/api/?name=GitHub+User&background=24292e',
         provider: 'github'
       }
-      
+
       localStorage.setItem('user', JSON.stringify(mockUser))
       setUser(mockUser)
       toast.success('Logged in with GitHub!')
@@ -123,6 +110,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   const logout = () => {
+    localStorage.removeItem('authToken')
     localStorage.removeItem('user')
     setUser(null)
     toast.success('Logged out successfully')

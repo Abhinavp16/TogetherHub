@@ -2,49 +2,33 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Users, FileText, Code, PenTool, Clock, Search, UserPlus } from 'lucide-react'
 import CreateRoomModal from '../components/UI/CreateRoomModal'
+import { roomAPI } from '../services/api'
+import toast from 'react-hot-toast'
 
 const RoomList = () => {
+  const [rooms, setRooms] = useState([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('all')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedRoomForParticipant, setSelectedRoomForParticipant] = useState(null)
   const [participantEmail, setParticipantEmail] = useState('')
 
-  // Mock data - replace with actual API calls
-  const rooms = [
-    {
-      id: '1',
-      name: 'Project Documentation',
-      type: 'document',
-      participants: 3,
-      lastActivity: '2 hours ago',
-      owner: 'Abhinav Pandey'
-    },
-    {
-      id: '2',
-      name: 'React Components',
-      type: 'code',
-      participants: 2,
-      lastActivity: '1 day ago',
-      owner: 'John Doe'
-    },
-    {
-      id: '3',
-      name: 'System Architecture',
-      type: 'whiteboard',
-      participants: 5,
-      lastActivity: '3 hours ago',
-      owner: 'Jane Smith'
-    },
-    {
-      id: '4',
-      name: 'API Documentation',
-      type: 'document',
-      participants: 1,
-      lastActivity: '5 minutes ago',
-      owner: 'Abhinav Pandey'
+  const fetchRooms = async () => {
+    try {
+      const response = await roomAPI.getRooms()
+      setRooms(response.data)
+    } catch (error) {
+      toast.error('Failed to fetch rooms')
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
+
+  useState(() => {
+    fetchRooms()
+  }, [])
+
 
   const getTypeIcon = (type) => {
     switch (type) {
@@ -70,29 +54,37 @@ const RoomList = () => {
     return matchesSearch && matchesFilter
   })
 
-  const handleAddParticipant = (roomId) => {
+  const handleAddParticipant = async (roomId) => {
     if (participantEmail.trim()) {
-      // Here you would call your API to add the participant
-      console.log(`Adding ${participantEmail} to room ${roomId}`)
+      try {
+        await roomAPI.joinRoom(roomId, { email: participantEmail })
+        toast.success('Participant added successfully')
+        fetchRooms()
+      } catch (error) {
+        toast.error('Failed to add participant')
+      }
       setParticipantEmail('')
       setSelectedRoomForParticipant(null)
-      // You can add a toast notification here
     }
   }
 
   return (
     <div className="max-w-6xl mx-auto">
-      <CreateRoomModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
+      <CreateRoomModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreate={() => {
+          fetchRooms()
+          setIsCreateModalOpen(false)
+        }}
       />
-      
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Collaboration Rooms</h1>
           <p className="text-slate-600 dark:text-slate-400">Manage and join collaborative workspaces</p>
         </div>
-        
+
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setIsCreateModalOpen(true)}
@@ -117,7 +109,7 @@ const RoomList = () => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
-            
+
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
@@ -135,40 +127,39 @@ const RoomList = () => {
           {filteredRooms.map((room) => {
             const Icon = getTypeIcon(room.type)
             const colorClass = getTypeColor(room.type)
-            
+
             return (
-              <div key={room.id} className="p-4 hover:bg-gray-50 transition-colors">
+              <div key={room._id} className="p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <div className={`${colorClass} p-3 rounded-lg text-white`}>
                       <Icon size={20} />
                     </div>
-                    
+
                     <div>
                       <h3 className="font-semibold text-gray-900">{room.name}</h3>
                       <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                        <span>Owner: {room.owner}</span>
+                        <span>Owner: {room.owner?.name || 'Unknown'}</span>
                         <div className="flex items-center space-x-1">
                           <Users size={14} />
-                          <span>{room.participants} participants</span>
+                          <span>{room.members?.length || 0} participants</span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <Clock size={14} />
-                          <span>{room.lastActivity}</span>
+                          <span>{new Date(room.updatedAt).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      room.type === 'document' ? 'bg-blue-100 text-blue-800' :
-                      room.type === 'code' ? 'bg-green-100 text-green-800' :
-                      'bg-purple-100 text-purple-800'
-                    }`}>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${room.type === 'document' ? 'bg-blue-100 text-blue-800' :
+                        room.type === 'code' ? 'bg-green-100 text-green-800' :
+                          'bg-purple-100 text-purple-800'
+                      }`}>
                       {room.type}
                     </span>
-                    
+
                     <button
                       onClick={() => setSelectedRoomForParticipant(room.id)}
                       className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center space-x-1"
@@ -177,9 +168,9 @@ const RoomList = () => {
                       <UserPlus size={16} />
                       <span className="text-sm font-medium">Add</span>
                     </button>
-                    
+
                     <Link
-                      to={`/${room.type}/${room.id}`}
+                      to={`/${room.type}/${room._id}`}
                       className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                     >
                       Join
@@ -210,7 +201,7 @@ const RoomList = () => {
               <UserPlus size={24} className="text-blue-600" />
               <h2 className="text-xl font-bold text-gray-900">Add Participant</h2>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
