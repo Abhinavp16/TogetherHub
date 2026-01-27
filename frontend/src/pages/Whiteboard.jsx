@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { Pen, Eraser, Square, Circle, Type, Undo, Redo, Save, Share, Palette } from 'lucide-react'
 import UserPresence from '../components/Collaboration/UserPresence'
 import { useCollaboration } from '../hooks/useCollaboration'
+import { useAuth } from '../contexts/AuthContext'
 
 const Whiteboard = () => {
   const { roomId } = useParams()
@@ -11,8 +12,44 @@ const Whiteboard = () => {
   const [color, setColor] = useState('#000000')
   const [strokeWidth, setStrokeWidth] = useState(2)
   const [isDrawing, setIsDrawing] = useState(false)
-  
-  const { users, isConnected } = useCollaboration(roomId, 'whiteboard')
+
+  const { user } = useAuth()
+  const { socket, users, isConnected, sendMessage, joinRoom } = useCollaboration(roomId, 'whiteboard')
+
+  useEffect(() => {
+    if (user && roomId) {
+      joinRoom({
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar
+      })
+    }
+  }, [user, roomId, joinRoom])
+
+  useEffect(() => {
+    if (!socket) return
+
+    socket.on('receive-update', (data) => {
+      if (data.type === 'whiteboard') {
+        const { x, y, lastX, lastY, color, width, isDrawing } = data.content
+        const canvas = canvasRef.current
+        const ctx = canvas.getContext('2d')
+
+        ctx.strokeStyle = color
+        ctx.lineWidth = width
+        ctx.beginPath()
+        ctx.moveTo(lastX, lastY)
+        ctx.lineTo(x, y)
+        ctx.stroke()
+      }
+    })
+
+    return () => {
+      socket.off('receive-update')
+    }
+  }, [socket])
+
+  const [lastPos, setLastPos] = useState({ x: 0, y: 0 })
 
   const tools = [
     { id: 'pen', icon: Pen, label: 'Pen' },
@@ -33,17 +70,17 @@ const Whiteboard = () => {
     if (!canvas) return
 
     const ctx = canvas.getContext('2d')
-    
+
     // Set canvas size
     const resizeCanvas = () => {
       const rect = canvas.parentElement.getBoundingClientRect()
       canvas.width = rect.width
       canvas.height = rect.height
     }
-    
+
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
-    
+
     // Initialize canvas
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
@@ -61,7 +98,8 @@ const Whiteboard = () => {
     const rect = canvas.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
-    
+    setLastPos({ x, y })
+
     const ctx = canvas.getContext('2d')
     ctx.beginPath()
     ctx.moveTo(x, y)
@@ -69,15 +107,31 @@ const Whiteboard = () => {
 
   const draw = (e) => {
     if (!isDrawing) return
-    
+
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
-    
+
     const ctx = canvas.getContext('2d')
+    ctx.strokeStyle = color
+    ctx.lineWidth = strokeWidth
     ctx.lineTo(x, y)
     ctx.stroke()
+
+    sendMessage('send-update', {
+      roomId,
+      type: 'whiteboard',
+      content: {
+        x, y,
+        lastX: lastPos.x,
+        lastY: lastPos.y,
+        color,
+        width: strokeWidth
+      }
+    })
+
+    setLastPos({ x, y })
   }
 
   const stopDrawing = () => {
@@ -109,7 +163,7 @@ const Whiteboard = () => {
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-4">
             <h2 className="text-xl font-semibold text-gray-900">Collaborative Whiteboard</h2>
-            
+
             <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
               {tools.map((t) => {
                 const Icon = t.icon
@@ -117,11 +171,10 @@ const Whiteboard = () => {
                   <button
                     key={t.id}
                     onClick={() => setTool(t.id)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      tool === t.id
+                    className={`p-2 rounded-lg transition-colors ${tool === t.id
                         ? 'bg-primary-600 text-white'
                         : 'text-gray-600 hover:bg-gray-200'
-                    }`}
+                      }`}
                     title={t.label}
                   >
                     <Icon size={18} />
@@ -129,7 +182,7 @@ const Whiteboard = () => {
                 )
               })}
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <input
                 type="color"
@@ -142,15 +195,14 @@ const Whiteboard = () => {
                   <button
                     key={c}
                     onClick={() => setColor(c)}
-                    className={`w-6 h-6 rounded border-2 ${
-                      color === c ? 'border-gray-800' : 'border-gray-300'
-                    }`}
+                    className={`w-6 h-6 rounded border-2 ${color === c ? 'border-gray-800' : 'border-gray-300'
+                      }`}
                     style={{ backgroundColor: c }}
                   />
                 ))}
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <label className="text-sm text-gray-600">Size:</label>
               <input
@@ -164,7 +216,7 @@ const Whiteboard = () => {
               <span className="text-sm text-gray-600">{strokeWidth}px</span>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -172,32 +224,32 @@ const Whiteboard = () => {
                 {isConnected ? 'Connected' : 'Disconnected'}
               </span>
             </div>
-            
+
             <UserPresence users={users} />
-            
+
             <button
-              onClick={() => {}}
+              onClick={() => { }}
               className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100"
               title="Undo"
             >
               <Undo size={18} />
             </button>
-            
+
             <button
-              onClick={() => {}}
+              onClick={() => { }}
               className="p-2 text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100"
               title="Redo"
             >
               <Redo size={18} />
             </button>
-            
+
             <button
               onClick={clearCanvas}
               className="px-3 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
             >
               Clear
             </button>
-            
+
             <button
               onClick={handleSave}
               className="flex items-center space-x-2 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
@@ -205,7 +257,7 @@ const Whiteboard = () => {
               <Save size={16} />
               <span>Save</span>
             </button>
-            
+
             <button
               onClick={handleShare}
               className="flex items-center space-x-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"

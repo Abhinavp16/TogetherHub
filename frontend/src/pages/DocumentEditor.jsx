@@ -14,7 +14,23 @@ import { documentAPI } from '../services/api'
 import toast from 'react-hot-toast'
 
 const DocumentEditor = () => {
+  const { roomId } = useParams()
   const { user } = useAuth()
+  const [content, setContent] = useState('')
+  const [title, setTitle] = useState('Untitled Document')
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
+  const [showComments, setShowComments] = useState(false)
+  const [versions, setVersions] = useState([])
+  const [comments, setComments] = useState([])
+  const [newComment, setNewComment] = useState('')
+  const [wordCount, setWordCount] = useState(0)
+  const [charCount, setCharCount] = useState(0)
+  const [showStats, setShowStats] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [autoSave, setAutoSave] = useState(true)
+  const [lastSaved, setLastSaved] = useState(null)
+  const quillRef = useRef()
+
   const { socket, users, isConnected, sendMessage, joinRoom } = useCollaboration(roomId, 'document')
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 

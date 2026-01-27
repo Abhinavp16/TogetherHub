@@ -7,6 +7,9 @@ import {
 } from 'lucide-react'
 import UserPresence from '../components/Collaboration/UserPresence'
 import { useCollaboration } from '../hooks/useCollaboration'
+import { useAuth } from '../contexts/AuthContext'
+import { documentAPI } from '../services/api'
+import toast from 'react-hot-toast'
 
 const CodeEditor = () => {
   const { roomId } = useParams()
@@ -74,7 +77,47 @@ console.log(message);
     }
   }, [roomId, navigate])
 
-  const { users, isConnected } = useCollaboration(roomId !== 'new' ? roomId : null, 'code')
+  const { user } = useAuth()
+  const { socket, users, isConnected, sendMessage, joinRoom } = useCollaboration(roomId !== 'new' ? roomId : null, 'code')
+
+  useEffect(() => {
+    const fetchCode = async () => {
+      try {
+        const response = await documentAPI.getDocument(roomId)
+        const doc = response.data
+        setCode(doc.content)
+        setLanguage(doc.language || 'javascript')
+
+        if (user) {
+          joinRoom({
+            id: user.id,
+            name: user.name,
+            avatar: user.avatar
+          })
+        }
+      } catch (error) {
+        toast.error('Failed to load code')
+      }
+    }
+
+    if (roomId && roomId !== 'new') {
+      fetchCode()
+    }
+  }, [roomId, user, joinRoom])
+
+  useEffect(() => {
+    if (!socket) return
+
+    socket.on('receive-update', (data) => {
+      if (data.type === 'code') {
+        setCode(data.content)
+      }
+    })
+
+    return () => {
+      socket.off('receive-update')
+    }
+  }, [socket])
 
   // Don't render until we have a valid roomId
   if (roomId === 'new') {
@@ -190,12 +233,16 @@ console.log(message);
 
   const handleCodeChange = (value) => {
     setCode(value)
-    // TODO: Implement Yjs synchronization
+    sendMessage('send-update', { roomId, content: value, type: 'code' })
   }
 
-  const handleSave = () => {
-    console.log('Saving code...', { language, code })
-    // TODO: Implement save functionality
+  const handleSave = async () => {
+    try {
+      await documentAPI.updateDocument(roomId, { content: code, language })
+      toast.success('Code saved')
+    } catch (error) {
+      toast.error('Failed to save code')
+    }
   }
 
   const handleDownload = () => {
@@ -470,12 +517,12 @@ console.log(message);
                 <div
                   key={file.id}
                   className={`flex items-center space-x-2 px-4 py-2 border-r cursor-pointer ${file.active
-                      ? theme === 'vs-dark'
-                        ? 'bg-[#1e1e1e] text-white border-t-2 border-t-blue-500'
-                        : 'bg-white text-gray-900 border-t-2 border-t-blue-500'
-                      : theme === 'vs-dark'
-                        ? 'bg-[#2d2d30] text-gray-400 hover:bg-[#1e1e1e] border-[#3e3e42]'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-50 border-gray-200'
+                    ? theme === 'vs-dark'
+                      ? 'bg-[#1e1e1e] text-white border-t-2 border-t-blue-500'
+                      : 'bg-white text-gray-900 border-t-2 border-t-blue-500'
+                    : theme === 'vs-dark'
+                      ? 'bg-[#2d2d30] text-gray-400 hover:bg-[#1e1e1e] border-[#3e3e42]'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-50 border-gray-200'
                     }`}
                   onClick={() => openFile(file)}
                 >
