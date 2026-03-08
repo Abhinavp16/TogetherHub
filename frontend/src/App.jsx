@@ -12,6 +12,7 @@ import DocumentEditor from './pages/DocumentEditor'
 import CodeEditor from './pages/CodeEditor'
 import Whiteboard from './pages/Whiteboard'
 import RoomList from './pages/RoomList'
+import Team from './pages/Team'
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
                   <Route path="document/:roomId" element={<DocumentEditor />} />
                   <Route path="code/:roomId" element={<CodeEditor />} />
                   <Route path="whiteboard/:roomId" element={<Whiteboard />} />
+                  <Route path="team" element={<Team />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </Routes>

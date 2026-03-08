@@ -57,10 +57,12 @@ const DocumentEditor = () => {
       }
     }
 
-    if (roomId) {
+    if (roomId && roomId !== 'new') {
       fetchDocument()
+    } else {
+      setIsInitialLoad(false)
     }
-  }, [roomId, user, joinRoom])
+  }, [roomId, user])
 
   useEffect(() => {
     if (user && roomId === 'new') {
@@ -69,7 +71,7 @@ const DocumentEditor = () => {
           const res = await documentAPI.createDocument({
             title: 'Untitled Document',
             content: '',
-            type: 'document'
+            type: 'text'
           })
           navigate(`/document/${res.data._id}`, { replace: true })
         } catch (error) {

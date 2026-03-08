@@ -5,11 +5,11 @@ import StatusIndicator from '../UI/StatusIndicator'
 
 const Layout = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-gray-900 dark:to-black">
+    <div className="h-screen overflow-hidden flex flex-col bg-slate-50 dark:bg-[#0b0f19] transition-colors duration-300">
       <Header />
-      <div className="flex">
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 p-8 scrollbar-modern overflow-y-auto">
+        <main className="flex-1 p-8 scrollbar-modern overflow-y-auto relative h-full">
           <div className="animate-fade-in-up">
             <Outlet />
           </div>

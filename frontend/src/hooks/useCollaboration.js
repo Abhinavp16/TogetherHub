@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { io } from 'socket.io-client'
 
 export const useCollaboration = (roomId, type) => {
@@ -42,19 +42,19 @@ export const useCollaboration = (roomId, type) => {
     }
   }, [roomId, type])
 
-  const sendMessage = (event, data) => {
+  const sendMessage = useCallback((event, data) => {
     if (socket && isConnected) {
       socket.emit(event, data)
     }
-  }
+  }, [socket, isConnected])
 
-  const joinRoom = (userData) => {
+  const joinRoom = useCallback((userData) => {
     sendMessage('join-room', { roomId, type, user: userData })
-  }
+  }, [sendMessage, roomId, type])
 
-  const leaveRoom = () => {
+  const leaveRoom = useCallback(() => {
     sendMessage('leave-room', { roomId })
-  }
+  }, [sendMessage, roomId])
 
   return {
     socket,

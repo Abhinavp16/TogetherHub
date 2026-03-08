@@ -44,7 +44,7 @@ const Whiteboard = () => {
         avatar: user.avatar
       })
     }
-  }, [user, roomId, joinRoom])
+  }, [user, roomId])
 
   useEffect(() => {
     if (!socket || roomId === 'new') return

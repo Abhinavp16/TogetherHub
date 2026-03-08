@@ -69,15 +69,33 @@ console.log(message);
   ])
   const editorRef = useRef(null)
 
-  // Generate a new room ID if "new" is passed
-  useEffect(() => {
-    if (roomId === 'new') {
-      const newRoomId = `code-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
-      navigate(`/code/${newRoomId}`, { replace: true })
-    }
-  }, [roomId, navigate])
-
   const { user } = useAuth()
+
+  useEffect(() => {
+    if (user && roomId === 'new') {
+      const createNew = async () => {
+        try {
+          const res = await documentAPI.createDocument({
+            title: 'Untitled Code Snippet',
+            content: `// Welcome to Together Hub Code Editor
+
+function greet(name) {
+  console.log(\`Hello, \${name}! 👋\`);
+}
+
+greet("Developer");`,
+            type: 'code',
+            language: 'javascript'
+          })
+          navigate(`/code/${res.data._id}`, { replace: true })
+        } catch (error) {
+          toast.error('Failed to create code session')
+        }
+      }
+      createNew()
+    }
+  }, [roomId, user, navigate])
+
   const { socket, users, isConnected, sendMessage, joinRoom } = useCollaboration(roomId !== 'new' ? roomId : null, 'code')
 
   useEffect(() => {
@@ -103,7 +121,7 @@ console.log(message);
     if (roomId && roomId !== 'new') {
       fetchCode()
     }
-  }, [roomId, user, joinRoom])
+  }, [roomId, user])
 
   useEffect(() => {
     if (!socket) return
@@ -121,13 +139,10 @@ console.log(message);
 
   // Don't render until we have a valid roomId
   if (roomId === 'new') {
-    console.log('Redirecting from "new" to generated room ID...')
     return (
-      <div className="h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Creating room...</p>
-        </div>
+      <div className="h-screen flex flex-col items-center justify-center bg-white dark:bg-[#1e1e1e]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
+        <p className="text-gray-600 dark:text-gray-400">Initializing editor...</p>
       </div>
     )
   }
