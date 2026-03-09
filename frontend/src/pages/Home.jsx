@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { FileText, Code, PenTool, Users, Plus, Sparkles, Zap, Clock, Activity, ArrowRight, LayoutDashboard, Search, Star, MessageSquare } from 'lucide-react'
+import { FileText, Code, PenTool, Users, Plus, Sparkles, Zap, Clock, Activity, ArrowRight, LayoutDashboard, Search, Star, MessageSquare, Bot } from 'lucide-react'
 import { useNotifications } from '../contexts/NotificationContext'
 import { useState, useEffect } from 'react'
 import { documentAPI } from '../services/api'
@@ -376,9 +376,9 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Search FAB */}
-      <button className="fab group" title="Quick Actions">
-        <Sparkles size={24} className="group-hover:rotate-12 transition-transform duration-300 pointer-events-none" />
+      {/* Chatbot FAB */}
+      <button className="fab group" title="Chatbot Assistant">
+        <Bot size={24} className="group-hover:rotate-12 transition-transform duration-300 pointer-events-none" />
       </button>
 
     </div>
