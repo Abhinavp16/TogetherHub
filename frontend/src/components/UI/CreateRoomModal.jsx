@@ -182,35 +182,73 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
                     {
                       value: 'document',
                       label: 'Document',
-                      icon: <FileText size={20} className="text-blue-500" />,
-                      description: 'Rich text docs'
+                      icon: <FileText size={20} className="text-blue-500 relative z-10" />,
+                      description: 'Rich text docs',
+                      bgGraphic: (
+                        <div className="absolute inset-0 right-0 overflow-hidden rounded-2xl opacity-40 transition-opacity group-hover:opacity-100">
+                          <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl transition-all group-hover:scale-150"></div>
+                          <div className="absolute top-2 right-2 w-16 h-12 border-t-2 border-r-2 border-blue-500/20 rounded-tr-xl transform translate-x-2 -translate-y-2 group-hover:translate-x-0 group-hover:translate-y-0 transition-transform"></div>
+                          <FileText size={48} className="absolute -bottom-2 -right-2 text-blue-500/10 transform rotate-12 group-hover:-rotate-12 transition-transform duration-500" />
+                        </div>
+                      )
                     },
                     {
                       value: 'code',
                       label: 'Code Editor',
-                      icon: <Code size={20} className="text-emerald-500" />,
-                      description: 'Pair programming'
+                      icon: <Code size={20} className="text-emerald-500 relative z-10" />,
+                      description: 'Pair programming',
+                      bgGraphic: (
+                        <div className="absolute inset-0 overflow-hidden rounded-2xl opacity-40 transition-opacity group-hover:opacity-100">
+                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl transition-all group-hover:scale-150"></div>
+                          <div className="absolute bottom-2 right-2 flex space-x-1 opacity-20 relative z-0">
+                            <div className="w-1.5 h-6 bg-emerald-500 rounded-full transform group-hover:scale-y-150 transition-transform"></div>
+                            <div className="w-1.5 h-4 bg-emerald-500 rounded-full transform group-hover:scale-y-150 transition-transform delay-75"></div>
+                            <div className="w-1.5 h-8 bg-emerald-500 rounded-full transform group-hover:scale-y-150 transition-transform delay-150"></div>
+                          </div>
+                          <Code size={48} className="absolute -bottom-2 -right-2 text-emerald-500/10 transform -rotate-12 group-hover:rotate-12 transition-transform duration-500" />
+                        </div>
+                      )
                     },
                     {
                       value: 'whiteboard',
                       label: 'Whiteboard',
-                      icon: <PenTool size={20} className="text-purple-500" />,
-                      description: 'Flowcharts & ideas'
+                      icon: <PenTool size={20} className="text-purple-500 relative z-10" />,
+                      description: 'Flowcharts & ideas',
+                      bgGraphic: (
+                        <div className="absolute inset-0 overflow-hidden rounded-2xl opacity-40 transition-opacity group-hover:opacity-100">
+                          <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-purple-500/10 rounded-full blur-xl transition-all group-hover:scale-150"></div>
+                          <svg className="absolute top-0 right-0 w-16 h-16 text-purple-500/20 transform translate-x-4 -translate-y-4 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="10 10" />
+                          </svg>
+                          <PenTool size={48} className="absolute -bottom-2 -right-2 text-purple-500/10 transform rotate-45 group-hover:rotate-90 transition-transform duration-500" />
+                        </div>
+                      )
                     },
                     {
                       value: 'video',
                       label: 'Video Call',
-                      icon: <Video size={20} className="text-rose-500" />,
-                      description: 'Face to face sync'
+                      icon: <Video size={20} className="text-rose-500 relative z-10" />,
+                      description: 'Face to face sync',
+                      bgGraphic: (
+                        <div className="absolute inset-0 overflow-hidden rounded-2xl opacity-40 transition-opacity group-hover:opacity-100">
+                          <div className="absolute -right-4 top-1/2 -translate-y-1/2 w-24 h-24 bg-rose-500/10 rounded-full blur-xl transition-all group-hover:scale-150"></div>
+                          <div className="absolute top-2 right-2 flex space-x-1.5 opacity-20">
+                            <div className="w-2 h-2 rounded-full bg-rose-500 group-hover:animate-ping"></div>
+                            <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+                          </div>
+                          <Video size={48} className="absolute -bottom-2 -right-2 text-rose-500/10 transform -rotate-12 group-hover:rotate-0 transition-transform duration-500" />
+                        </div>
+                      )
                     }
                   ].map((type) => (
                     <label
                       key={type.value}
-                      className={`relative p-4 border rounded-2xl cursor-pointer transition-all duration-200 block overflow-hidden ${formData.type === type.value
+                      className={`group relative p-4 border rounded-2xl cursor-pointer transition-all duration-200 block overflow-hidden ${formData.type === type.value
                         ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 shadow-sm'
                         : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                         }`}
                     >
+                      {type.bgGraphic}
                       <input
                         type="radio"
                         name="type"
@@ -220,7 +258,7 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
                         className="sr-only"
                       />
                       <div className="flex flex-col space-y-2 relative z-10">
-                        <div className={`p-2.5 rounded-xl w-max transition-colors ${formData.type === type.value
+                        <div className={`p-2.5 rounded-xl w-max transition-colors relative ${formData.type === type.value
                           ? 'bg-white shadow-sm dark:bg-slate-800'
                           : 'bg-slate-100 dark:bg-[#1e293b]'
                           }`}>
@@ -238,7 +276,7 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
 
                       {/* Active Indicator Ring */}
                       {formData.type === type.value && (
-                        <div className="absolute top-4 right-4 text-indigo-500 animate-fade-in-up">
+                        <div className="absolute top-4 right-4 text-indigo-500 animate-fade-in-up z-20">
                           <Check size={18} strokeWidth={3} />
                         </div>
                       )}

@@ -88,10 +88,42 @@ const Home = () => {
   ]
 
   const statCards = [
-    { id: 1, name: "Lines of code", value: "1,248", trend: "+12%", trendUp: true, icon: Activity, iconColor: "text-indigo-600 dark:text-[#818cf8]", iconBg: "bg-indigo-100 dark:bg-[#2b2d4f]" },
-    { id: 2, name: "Docs Created", value: "42", trend: "+5%", trendUp: true, icon: FileText, iconColor: "text-blue-600 dark:text-[#60a5fa]", iconBg: "bg-blue-100 dark:bg-[#213555]" },
-    { id: 3, name: "Active Peers", value: "7", trend: "+2", trendUp: true, icon: Users, iconColor: "text-pink-600 dark:text-[#f472b6]", iconBg: "bg-pink-100 dark:bg-[#45253e]" },
-    { id: 4, name: "Hours Saved", value: "14h", trend: "+15%", trendUp: true, icon: Clock, iconColor: "text-emerald-600 dark:text-[#34d399]", iconBg: "bg-emerald-100 dark:bg-[#1d3d35]" }
+    {
+      id: 1, name: "Lines of code", value: "1,248", trend: "+12%", trendUp: true, icon: Activity, iconColor: "text-indigo-600 dark:text-[#818cf8]", iconBg: "bg-indigo-100 dark:bg-[#2b2d4f]",
+      bgGraphic: (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-indigo-500/20 rounded-full blur-[40px] group-hover:scale-110 transition-transform duration-500"></div>
+          <Activity size={140} className="absolute -bottom-8 -right-8 text-indigo-500/10 transform rotate-[-15deg] group-hover:rotate-0 transition-transform duration-700" strokeWidth={1} />
+        </div>
+      )
+    },
+    {
+      id: 2, name: "Docs Created", value: "42", trend: "+5%", trendUp: true, icon: FileText, iconColor: "text-blue-600 dark:text-[#60a5fa]", iconBg: "bg-blue-100 dark:bg-[#213555]",
+      bgGraphic: (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -left-12 top-1/2 -translate-y-1/2 w-48 h-48 bg-blue-500/20 rounded-full blur-[40px] group-hover:scale-110 transition-transform duration-500"></div>
+          <FileText size={140} className="absolute top-12 -right-8 text-blue-500/10 transform rotate-[15deg] group-hover:rotate-0 transition-transform duration-700" strokeWidth={1} />
+        </div>
+      )
+    },
+    {
+      id: 3, name: "Active Peers", value: "7", trend: "+2", trendUp: true, icon: Users, iconColor: "text-pink-600 dark:text-[#f472b6]", iconBg: "bg-pink-100 dark:bg-[#45253e]",
+      bgGraphic: (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute right-0 -bottom-12 w-full h-32 bg-pink-500/20 blur-[40px] group-hover:h-40 transition-all duration-500"></div>
+          <Users size={150} className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/4 text-pink-500/10 transform rotate-[-5deg] group-hover:scale-110 transition-transform duration-700" strokeWidth={1} />
+        </div>
+      )
+    },
+    {
+      id: 4, name: "Hours Saved", value: "14h", trend: "+15%", trendUp: true, icon: Clock, iconColor: "text-emerald-600 dark:text-[#34d399]", iconBg: "bg-emerald-100 dark:bg-[#1d3d35]",
+      bgGraphic: (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-12 -right-12 w-48 h-48 bg-emerald-500/20 rounded-full blur-[40px] group-hover:scale-110 transition-transform duration-500"></div>
+          <Clock size={160} className="absolute -bottom-10 -left-10 text-emerald-500/10 transform rotate-[30deg] group-hover:rotate-45 transition-transform duration-700" strokeWidth={1} />
+        </div>
+      )
+    }
   ]
 
   return (
@@ -151,7 +183,7 @@ const Home = () => {
               return (
                 <div
                   key={stat.id}
-                  className="absolute top-0 left-0 w-full bg-white dark:bg-[#1e2330] rounded-[2rem] p-7 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer shadow-[0_15px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.03)] border border-slate-200 dark:border-white/5"
+                  className="absolute top-0 left-0 w-full bg-white dark:bg-[#1e2330] rounded-[2rem] p-7 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer shadow-[0_15px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.03)] border border-slate-200 dark:border-white/5 overflow-hidden group"
                   style={{
                     transformOrigin: 'top center',
                     transform: `translateY(${translateY}px) scale(${scale})`,
@@ -161,16 +193,19 @@ const Home = () => {
                   }}
                   onClick={() => setActiveCardIndex((prev) => (prev + 1) % statCards.length)}
                 >
-                  <div className="flex items-center justify-between mb-6">
-                    <div className={`w-[56px] h-[56px] ${stat.iconBg} rounded-[1.25rem] flex items-center justify-center`}>
-                      <Icon className={stat.iconColor} size={28} strokeWidth={2.5} />
+                  {stat.bgGraphic}
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className={`w-[56px] h-[56px] ${stat.iconBg} rounded-[1.25rem] flex items-center justify-center relative z-10`}>
+                        <Icon className={stat.iconColor} size={28} strokeWidth={2.5} />
+                      </div>
+                      <span className="bg-emerald-100 dark:bg-[#15392b] text-emerald-700 dark:text-[#10b981] text-[14px] font-bold px-4 py-1.5 rounded-full tracking-wide">
+                        {stat.trend}
+                      </span>
                     </div>
-                    <span className="bg-emerald-100 dark:bg-[#15392b] text-emerald-700 dark:text-[#10b981] text-[14px] font-bold px-4 py-1.5 rounded-full tracking-wide">
-                      {stat.trend}
-                    </span>
+                    <h3 className="text-[44px] font-black mb-2 tracking-tight leading-none text-slate-900 dark:text-white drop-shadow-sm">{stat.value}</h3>
+                    <p className="text-slate-600 dark:text-slate-300 font-medium text-[17px]">{stat.name}</p>
                   </div>
-                  <h3 className="text-[44px] font-black mb-2 tracking-tight leading-none text-slate-900 dark:text-white">{stat.value}</h3>
-                  <p className="text-slate-600 dark:text-slate-300 font-medium text-[17px]">{stat.name}</p>
                 </div>
               );
             })}
