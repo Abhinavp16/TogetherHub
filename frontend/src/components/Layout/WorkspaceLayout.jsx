@@ -8,6 +8,7 @@ import {
   PanelLeft,
   PenTool,
   Users,
+  Video,
   X
 } from 'lucide-react'
 import Logo from '../UI/Logo'
@@ -21,7 +22,8 @@ const navigationLinks = [
 const workspaceLinks = [
   { label: 'New Document', to: '/document/new', icon: FileText },
   { label: 'New Code Editor', to: '/code/new', icon: Code },
-  { label: 'New Whiteboard', to: '/whiteboard/new', icon: PenTool }
+  { label: 'New Whiteboard', to: '/whiteboard/new', icon: PenTool },
+  { label: 'New Meeting Room', to: '/video/new', icon: Video }
 ]
 
 const WorkspaceLayout = () => {
@@ -33,6 +35,7 @@ const WorkspaceLayout = () => {
     if (location.pathname.startsWith('/document/')) return 'Document Workspace'
     if (location.pathname.startsWith('/code/')) return 'Code Workspace'
     if (location.pathname.startsWith('/whiteboard/')) return 'Whiteboard Workspace'
+    if (location.pathname.startsWith('/video/')) return 'Meeting Workspace'
     return 'Workspace'
   }, [location.pathname])
 

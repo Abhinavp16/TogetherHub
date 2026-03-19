@@ -50,7 +50,7 @@ export const roomAPI = {
   getRooms: () => api.get('/rooms'),
   getRoom: (id) => api.get(`/rooms/${id}`),
   createRoom: (data) => api.post('/rooms', data),
-  joinRoom: (id) => api.post(`/rooms/${id}/join`),
+  joinRoom: (id, data = {}) => api.post(`/rooms/${id}/join`, data),
   leaveRoom: (id) => api.post(`/rooms/${id}/leave`)
 }
 

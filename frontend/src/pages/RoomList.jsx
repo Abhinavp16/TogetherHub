@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Plus, Users, FileText, Code, PenTool, Clock, Search, UserPlus, Video } from 'lucide-react'
@@ -26,7 +26,7 @@ const RoomList = () => {
     }
   }
 
-  useState(() => {
+  useEffect(() => {
     fetchRooms()
   }, [])
 

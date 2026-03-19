@@ -12,6 +12,11 @@ const roomSchema = new mongoose.Schema({
     },
     type: {
         type: String,
+        enum: ['document', 'code', 'whiteboard', 'video'],
+        default: 'document'
+    },
+    visibility: {
+        type: String,
         enum: ['public', 'private'],
         default: 'public'
     },
@@ -24,6 +29,21 @@ const roomSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
+    invites: [{
+        type: String,
+        trim: true,
+        lowercase: true
+    }],
+    meetingSettings: {
+        allowChat: {
+            type: Boolean,
+            default: true
+        },
+        allowScreenShare: {
+            type: Boolean,
+            default: true
+        }
+    },
     isActive: {
         type: Boolean,
         default: true

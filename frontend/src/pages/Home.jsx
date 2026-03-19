@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { FileText, Code, PenTool, Users, Plus, Sparkles, Zap, Clock, Activity, ArrowRight, LayoutDashboard, Search, Star, MessageSquare, Bot } from 'lucide-react'
+import { FileText, Code, PenTool, Users, Plus, Sparkles, Zap, Clock, Activity, ArrowRight, LayoutDashboard, Search, Star, MessageSquare, Bot, Video } from 'lucide-react'
 import { useNotifications } from '../contexts/NotificationContext'
 import { useState, useEffect } from 'react'
 import { documentAPI } from '../services/api'
@@ -84,6 +84,15 @@ const Home = () => {
       color: 'text-pink-500',
       bg: 'bg-pink-50 dark:bg-pink-500/10',
       border: 'group-hover:border-pink-500/50'
+    },
+    {
+      title: 'Meeting Room',
+      desc: 'Video collaboration',
+      icon: Video,
+      path: '/video/new',
+      color: 'text-rose-500',
+      bg: 'bg-rose-50 dark:bg-rose-500/10',
+      border: 'group-hover:border-rose-500/50'
     }
   ]
 
@@ -225,7 +234,7 @@ const Home = () => {
                 Quick Start
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
               {tools.map((tool, index) => {
                 const Icon = tool.icon
                 return (

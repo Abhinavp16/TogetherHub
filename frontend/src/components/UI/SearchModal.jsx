@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, X, FileText, Code, Palette, Users, Clock } from 'lucide-react'
+import { Search, X, FileText, Code, Palette, Users, Clock, Video } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const SearchModal = ({ isOpen, onClose }) => {
@@ -17,6 +17,7 @@ const SearchModal = ({ isOpen, onClose }) => {
     { id: 4, title: 'Team Meeting Notes', type: 'document', path: '/document/4', icon: FileText },
     { id: 5, title: 'API Development', type: 'code', path: '/code/5', icon: Code },
     { id: 6, title: 'User Flow Diagram', type: 'whiteboard', path: '/whiteboard/6', icon: Palette },
+    { id: 7, title: 'Weekly Sync Meeting', type: 'video', path: '/video/new', icon: Video },
   ]
 
   useEffect(() => {
@@ -65,6 +66,7 @@ const SearchModal = ({ isOpen, onClose }) => {
       case 'document': return 'text-blue-600 dark:text-blue-400'
       case 'code': return 'text-green-600 dark:text-green-400'
       case 'whiteboard': return 'text-purple-600 dark:text-purple-400'
+      case 'video': return 'text-rose-600 dark:text-rose-400'
       default: return 'text-slate-600 dark:text-slate-400'
     }
   }

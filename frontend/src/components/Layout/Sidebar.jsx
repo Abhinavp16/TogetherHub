@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, FileText, Code, PenTool, Users, TrendingUp, Shield } from 'lucide-react'
+import { Home, FileText, Code, PenTool, Users, TrendingUp, Shield, Video } from 'lucide-react'
 
 const Sidebar = () => {
   const location = useLocation()
@@ -10,6 +10,7 @@ const Sidebar = () => {
     { path: '/document/new', icon: FileText, label: 'Document Editor', gradient: 'from-blue-500 to-indigo-500' },
     { path: '/code/new', icon: Code, label: 'Code Editor', gradient: 'from-green-500 to-teal-500' },
     { path: '/whiteboard/new', icon: PenTool, label: 'Whiteboard', gradient: 'from-purple-500 to-pink-500' },
+    { path: '/video/new', icon: Video, label: 'Meeting Room', gradient: 'from-rose-500 to-orange-500' },
     { path: '/team', icon: Shield, label: 'My Team', gradient: 'from-yellow-400 to-amber-500' },
   ]
 

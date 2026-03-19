@@ -12,6 +12,7 @@ import Home from './pages/Home'
 import DocumentEditor from './pages/DocumentEditor'
 import CodeEditor from './pages/CodeEditor'
 import Whiteboard from './pages/Whiteboard'
+import MeetingRoom from './pages/MeetingRoom'
 import RoomList from './pages/RoomList'
 import Team from './pages/Team'
 
@@ -53,6 +54,7 @@ function App() {
                   <Route path="/document/:roomId" element={<DocumentEditor />} />
                   <Route path="/code/:roomId" element={<CodeEditor />} />
                   <Route path="/whiteboard/:roomId" element={<Whiteboard />} />
+                  <Route path="/video/:roomId" element={<MeetingRoom />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </Routes>

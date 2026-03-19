@@ -2,13 +2,29 @@ const Room = require('../models/Room');
 
 exports.createRoom = async (req, res) => {
     try {
+        const {
+            name,
+            description,
+            type = 'document',
+            isPrivate = false,
+            invites = []
+        } = req.body;
+
         const room = new Room({
-            ...req.body,
+            name,
+            description,
+            type,
+            visibility: isPrivate ? 'private' : 'public',
+            invites,
             owner: req.user._id,
             members: [req.user._id]
         });
         await room.save();
-        res.status(201).json(room);
+        const populatedRoom = await room.populate([
+            { path: 'owner', select: 'name avatar email' },
+            { path: 'members', select: 'name avatar email' }
+        ]);
+        res.status(201).json(populatedRoom);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
@@ -46,12 +62,21 @@ exports.joinRoom = async (req, res) => {
             return res.status(404).json({ message: 'Room not found' });
         }
 
-        if (!room.members.includes(req.user._id)) {
+        const isMember = room.members.some(
+            (memberId) => memberId.toString() === req.user._id.toString()
+        );
+
+        if (!isMember) {
             room.members.push(req.user._id);
             await room.save();
         }
 
-        res.json(room);
+        const populatedRoom = await room.populate([
+            { path: 'owner', select: 'name avatar email' },
+            { path: 'members', select: 'name avatar email' }
+        ]);
+
+        res.json(populatedRoom);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
@@ -67,7 +92,7 @@ exports.leaveRoom = async (req, res) => {
         room.members = room.members.filter(memberId => memberId.toString() !== req.user._id.toString());
         await room.save();
 
-        res.json({ message: 'Joined room successfully' });
+        res.json({ message: 'Left room successfully' });
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
