@@ -178,8 +178,8 @@ const Whiteboard = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="h-full p-4">
+      <div className="flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-4">
             <h2 className="text-xl font-semibold text-gray-900">Collaborative Whiteboard</h2>
@@ -288,7 +288,7 @@ const Whiteboard = () => {
           </div>
         </div>
 
-        <div className="relative" style={{ height: '500px' }}>
+        <div className="relative flex-1 min-h-0">
           <canvas
             ref={canvasRef}
             className="absolute inset-0 cursor-crosshair canvas-container"

@@ -378,7 +378,7 @@ greet("Developer");`,
   }
 
   return (
-    <div className={`-m-8 h-[calc(100vh-64px)] flex flex-col ${theme === 'vs-dark' ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+    <div className={`h-full min-h-0 flex flex-col overflow-hidden ${theme === 'vs-dark' ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
       {/* Top Toolbar */}
       <div className={`${theme === 'vs-dark' ? 'bg-[#323233] border-[#3e3e42]' : 'bg-white border-gray-200'} border-b px-4 py-2 flex-shrink-0`}>
         <div className="flex items-center justify-between">

@@ -10,7 +10,7 @@ const Layout = () => {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 p-8 scrollbar-modern overflow-y-auto relative h-full">
-          <div className="animate-fade-in-up">
+          <div className="animate-fade-in">
             <Outlet />
           </div>
         </main>

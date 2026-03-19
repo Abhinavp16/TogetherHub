@@ -291,10 +291,10 @@ const DocumentEditor = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto flex gap-6 p-6">
+    <div className="flex h-full gap-4 overflow-hidden p-4">
       {/* Main Editor */}
-      <div className="flex-1">
-        <div className="glass-card overflow-hidden">
+      <div className="min-w-0 flex-1">
+        <div className="glass-card flex h-full flex-col overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between p-6 glass-header">
             <input
@@ -408,7 +408,7 @@ const DocumentEditor = () => {
           )}
 
           {/* Editor */}
-          <div className="p-6 bg-white dark:bg-slate-900" style={{ position: 'relative', zIndex: 1 }}>
+          <div className="flex-1 overflow-auto bg-white p-6 dark:bg-slate-900" style={{ position: 'relative', zIndex: 1 }}>
             <ReactQuill
               ref={quillRef}
               theme="snow"
@@ -417,7 +417,7 @@ const DocumentEditor = () => {
               modules={modules}
               formats={formats}
               placeholder="Start writing your document..."
-              style={{ minHeight: '500px', position: 'relative' }}
+              style={{ minHeight: '100%', position: 'relative' }}
             />
           </div>
 
@@ -519,7 +519,7 @@ const DocumentEditor = () => {
 
       {/* Version History Sidebar */}
       {showVersionHistory && (
-        <div className="w-80 glass-card p-6 max-h-[calc(100vh-8rem)] overflow-y-auto scrollbar-modern">
+        <div className="w-80 flex-shrink-0 glass-card p-6 max-h-full overflow-y-auto scrollbar-modern">
           <h3 className="text-xl font-bold mb-6 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
             <History size={20} className="text-blue-600 dark:text-blue-400" />
             <span>Version History</span>
@@ -557,7 +557,7 @@ const DocumentEditor = () => {
 
       {/* Comments Sidebar */}
       {showComments && (
-        <div className="w-80 glass-card p-6 max-h-[calc(100vh-8rem)] overflow-y-auto scrollbar-modern">
+        <div className="w-80 flex-shrink-0 glass-card p-6 max-h-full overflow-y-auto scrollbar-modern">
           <h3 className="text-xl font-bold mb-6 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
             <MessageSquare size={20} className="text-purple-600 dark:text-purple-400" />
             <span>Comments</span>

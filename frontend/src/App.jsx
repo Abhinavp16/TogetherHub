@@ -4,6 +4,7 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { AuthProvider } from './contexts/AuthContext'
 import Layout from './components/Layout/Layout'
+import WorkspaceLayout from './components/Layout/WorkspaceLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -42,10 +43,16 @@ function App() {
                 }>
                   <Route index element={<Home />} />
                   <Route path="rooms" element={<RoomList />} />
-                  <Route path="document/:roomId" element={<DocumentEditor />} />
-                  <Route path="code/:roomId" element={<CodeEditor />} />
-                  <Route path="whiteboard/:roomId" element={<Whiteboard />} />
                   <Route path="team" element={<Team />} />
+                </Route>
+                <Route element={
+                  <ProtectedRoute>
+                    <WorkspaceLayout />
+                  </ProtectedRoute>
+                }>
+                  <Route path="/document/:roomId" element={<DocumentEditor />} />
+                  <Route path="/code/:roomId" element={<CodeEditor />} />
+                  <Route path="/whiteboard/:roomId" element={<Whiteboard />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </Routes>

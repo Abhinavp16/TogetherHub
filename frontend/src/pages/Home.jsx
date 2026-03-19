@@ -129,7 +129,7 @@ const Home = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-indigo-50 dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.05)] dark:shadow-2xl animate-fade-in-up transition-colors duration-300">
+      <div className="relative overflow-hidden rounded-[2.25rem] bg-indigo-50 dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.05)] dark:shadow-2xl animate-fade-in-up transition-colors duration-300">
         {/* Background Effects */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-indigo-200/50 dark:from-indigo-500/30 to-purple-300/50 dark:to-purple-600/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3"></div>
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-pink-200/50 dark:from-pink-500/20 to-rose-300/50 dark:to-rose-500/20 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/3"></div>
@@ -137,34 +137,34 @@ const Home = () => {
         {/* Pattern overlay */}
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] dark:opacity-10"></div>
 
-        <div className="relative p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="relative p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="text-center md:text-left z-10 w-full md:w-2/3">
-            <div className="inline-flex items-center space-x-2 bg-indigo-500/10 dark:bg-white/10 backdrop-blur-md border border-indigo-500/20 dark:border-white/20 rounded-full px-4 py-2 mb-6 shadow-sm dark:shadow-xl">
+            <div className="inline-flex items-center space-x-2 bg-indigo-500/10 dark:bg-white/10 backdrop-blur-md border border-indigo-500/20 dark:border-white/20 rounded-full px-4 py-2 mb-4 shadow-sm dark:shadow-xl">
               <Sparkles className="text-indigo-600 dark:text-yellow-400" size={16} />
               <span className="text-sm font-semibold text-indigo-800 dark:text-white tracking-wide">Together Hub v2.0 is live!</span>
             </div>
-            <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white mb-4 tracking-tight leading-tight transition-colors">
+            <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 dark:text-white mb-3 tracking-tight leading-[1.02] transition-colors">
               Welcome back, <br />
               <span className="bg-gradient-premium bg-clip-text text-transparent">
                 {user?.name?.split(' ')[0] || 'Creator'}
               </span>
             </h1>
-            <p className="text-lg text-slate-700 dark:text-slate-300 md:max-w-lg leading-relaxed transition-colors">
+            <p className="text-base text-slate-700 dark:text-slate-300 md:max-w-lg leading-relaxed transition-colors">
               Your workspace is ready. You have 3 documents waiting for your review and 2 active collaboration sessions.
             </p>
-            <div className="mt-8 flex flex-wrap gap-4 justify-center md:justify-start">
-              <Link to="/document/new" className="px-6 py-3 bg-indigo-600 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold hover:bg-indigo-700 dark:hover:bg-slate-100 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center space-x-2">
-                <Plus size={20} />
+            <div className="mt-6 flex flex-wrap gap-3 justify-center md:justify-start">
+              <Link to="/document/new" className="px-5 py-2.5 bg-indigo-600 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold hover:bg-indigo-700 dark:hover:bg-slate-100 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center space-x-2">
+                <Plus size={18} />
                 <span>New Project</span>
               </Link>
-              <Link to="/rooms" className="px-6 py-3 bg-white/60 dark:bg-white/10 backdrop-blur-md border border-slate-300 dark:border-white/20 text-slate-800 dark:text-white rounded-2xl font-bold hover:bg-white/80 dark:hover:bg-white/20 transition-all shadow-md dark:shadow-lg hover:-translate-y-1 flex items-center space-x-2">
-                <LayoutDashboard size={20} />
+              <Link to="/rooms" className="px-5 py-2.5 bg-white/60 dark:bg-white/10 backdrop-blur-md border border-slate-300 dark:border-white/20 text-slate-800 dark:text-white rounded-2xl font-bold hover:bg-white/80 dark:hover:bg-white/20 transition-all shadow-md dark:shadow-lg hover:-translate-y-1 flex items-center space-x-2">
+                <LayoutDashboard size={18} />
                 <span>Browse Rooms</span>
               </Link>
             </div>
           </div>
 
-          <div className="hidden md:flex flex-col w-1/3 z-10 h-[220px] relative perspective-1000 mt-8">
+          <div className="hidden md:flex flex-col w-[30%] z-10 h-[180px] relative perspective-1000">
             {statCards.map((stat, i) => {
               const Icon = stat.icon;
 
@@ -175,15 +175,15 @@ const Home = () => {
               const isVisible = offset < 3; // Show top 3 cards to make stack
 
               // The older cards go upwards, get smaller, and fade a bit
-              const translateY = offset * -20;
-              const scale = 1 - offset * 0.05;
+              const translateY = offset * -16;
+              const scale = 1 - offset * 0.06;
               const opacity = isVisible ? 1 - (offset * 0.3) : 0;
               const zIndex = statCards.length - offset;
 
               return (
                 <div
                   key={stat.id}
-                  className="absolute top-0 left-0 w-full bg-white dark:bg-[#1e2330] rounded-[2rem] p-7 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer shadow-[0_15px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.03)] border border-slate-200 dark:border-white/5 overflow-hidden group"
+                  className="absolute top-0 left-0 w-full bg-white dark:bg-[#1e2330] rounded-[1.7rem] p-5 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer shadow-[0_15px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.03)] border border-slate-200 dark:border-white/5 overflow-hidden group"
                   style={{
                     transformOrigin: 'top center',
                     transform: `translateY(${translateY}px) scale(${scale})`,
@@ -195,16 +195,16 @@ const Home = () => {
                 >
                   {stat.bgGraphic}
                   <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className={`w-[56px] h-[56px] ${stat.iconBg} rounded-[1.25rem] flex items-center justify-center relative z-10`}>
-                        <Icon className={stat.iconColor} size={28} strokeWidth={2.5} />
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`w-[48px] h-[48px] ${stat.iconBg} rounded-[1rem] flex items-center justify-center relative z-10`}>
+                        <Icon className={stat.iconColor} size={24} strokeWidth={2.5} />
                       </div>
-                      <span className="bg-emerald-100 dark:bg-[#15392b] text-emerald-700 dark:text-[#10b981] text-[14px] font-bold px-4 py-1.5 rounded-full tracking-wide">
+                      <span className="bg-emerald-100 dark:bg-[#15392b] text-emerald-700 dark:text-[#10b981] text-[12px] font-bold px-3 py-1 rounded-full tracking-wide">
                         {stat.trend}
                       </span>
                     </div>
-                    <h3 className="text-[44px] font-black mb-2 tracking-tight leading-none text-slate-900 dark:text-white drop-shadow-sm">{stat.value}</h3>
-                    <p className="text-slate-600 dark:text-slate-300 font-medium text-[17px]">{stat.name}</p>
+                    <h3 className="text-[34px] font-black mb-1 tracking-tight leading-none text-slate-900 dark:text-white drop-shadow-sm">{stat.value}</h3>
+                    <p className="text-slate-600 dark:text-slate-300 font-medium text-[15px]">{stat.name}</p>
                   </div>
                 </div>
               );
