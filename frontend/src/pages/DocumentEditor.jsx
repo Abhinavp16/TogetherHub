@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -113,6 +113,35 @@ const setProviderPresence = (provider, profile) => {
   }
 
   provider.setAwarenessField('user', profile)
+}
+
+const defaultToolbarState = {
+  bold: false,
+  italic: false,
+  strike: false,
+  heading1: false,
+  heading2: false,
+  bulletList: false,
+  orderedList: false,
+  blockquote: false,
+  blockFormattingDisabled: false
+}
+
+const hasPartialBlockSelection = (editor) => {
+  if (!editor) {
+    return false
+  }
+
+  const { selection } = editor.state
+
+  if (selection.empty) {
+    return false
+  }
+
+  const startsInsideTextblock = selection.$from.parent.isTextblock && selection.$from.parentOffset > 0
+  const endsInsideTextblock = selection.$to.parent.isTextblock && selection.$to.parentOffset < selection.$to.parent.content.size
+
+  return startsInsideTextblock || endsInsideTextblock
 }
 
 const DocumentEditor = () => {
@@ -346,6 +375,27 @@ const DocumentEditor = () => {
     [collaborationKey, presenceProfile.id, presenceProfile.name, presenceProfile.color]
   )
 
+  const toolbarState = useEditorState({
+    editor,
+    selector: ({ editor: currentEditor }) => {
+      if (!currentEditor) {
+        return defaultToolbarState
+      }
+
+      return {
+        bold: currentEditor.isActive('bold'),
+        italic: currentEditor.isActive('italic'),
+        strike: currentEditor.isActive('strike'),
+        heading1: currentEditor.isActive('heading', { level: 1 }),
+        heading2: currentEditor.isActive('heading', { level: 2 }),
+        bulletList: currentEditor.isActive('bulletList'),
+        orderedList: currentEditor.isActive('orderedList'),
+        blockquote: currentEditor.isActive('blockquote'),
+        blockFormattingDisabled: hasPartialBlockSelection(currentEditor)
+      }
+    }
+  })
+
   useEffect(() => {
     const provider = collaborationRef.current?.provider
 
@@ -408,6 +458,8 @@ const DocumentEditor = () => {
       toast.error('Failed to copy document link')
     }
   }
+
+  const blockFormattingHint = 'Headings, lists, and quotes apply to full lines. Select the full line or place the cursor in it first.'
 
   const activeCollaborators = presenceUsers.length ? presenceUsers : [presenceProfile]
   const typingUsers = activeCollaborators.filter((collaborator) => collaborator.typing && collaborator.id !== presenceProfile.id)
@@ -507,7 +559,7 @@ const DocumentEditor = () => {
                 </ToolbarButton>
                 <ToolbarButton
                   title="Bold"
-                  active={editor?.isActive('bold')}
+                  active={toolbarState.bold}
                   onClick={() => editor?.chain().focus().toggleBold().run()}
                   disabled={!editor}
                 >
@@ -515,7 +567,7 @@ const DocumentEditor = () => {
                 </ToolbarButton>
                 <ToolbarButton
                   title="Italic"
-                  active={editor?.isActive('italic')}
+                  active={toolbarState.italic}
                   onClick={() => editor?.chain().focus().toggleItalic().run()}
                   disabled={!editor}
                 >
@@ -523,53 +575,59 @@ const DocumentEditor = () => {
                 </ToolbarButton>
                 <ToolbarButton
                   title="Strike"
-                  active={editor?.isActive('strike')}
+                  active={toolbarState.strike}
                   onClick={() => editor?.chain().focus().toggleStrike().run()}
                   disabled={!editor}
                 >
                   <Strikethrough size={16} />
                 </ToolbarButton>
                 <ToolbarButton
-                  title="Heading 1"
-                  active={editor?.isActive('heading', { level: 1 })}
+                  title={toolbarState.blockFormattingDisabled ? blockFormattingHint : 'Heading 1'}
+                  active={toolbarState.heading1}
                   onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-                  disabled={!editor}
+                  disabled={!editor || toolbarState.blockFormattingDisabled}
                 >
                   <Heading1 size={16} />
                 </ToolbarButton>
                 <ToolbarButton
-                  title="Heading 2"
-                  active={editor?.isActive('heading', { level: 2 })}
+                  title={toolbarState.blockFormattingDisabled ? blockFormattingHint : 'Heading 2'}
+                  active={toolbarState.heading2}
                   onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-                  disabled={!editor}
+                  disabled={!editor || toolbarState.blockFormattingDisabled}
                 >
                   <Heading2 size={16} />
                 </ToolbarButton>
                 <ToolbarButton
-                  title="Bullet list"
-                  active={editor?.isActive('bulletList')}
+                  title={toolbarState.blockFormattingDisabled ? blockFormattingHint : 'Bullet list'}
+                  active={toolbarState.bulletList}
                   onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                  disabled={!editor}
+                  disabled={!editor || toolbarState.blockFormattingDisabled}
                 >
                   <List size={16} />
                 </ToolbarButton>
                 <ToolbarButton
-                  title="Ordered list"
-                  active={editor?.isActive('orderedList')}
+                  title={toolbarState.blockFormattingDisabled ? blockFormattingHint : 'Ordered list'}
+                  active={toolbarState.orderedList}
                   onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                  disabled={!editor}
+                  disabled={!editor || toolbarState.blockFormattingDisabled}
                 >
                   <ListOrdered size={16} />
                 </ToolbarButton>
                 <ToolbarButton
-                  title="Quote"
-                  active={editor?.isActive('blockquote')}
+                  title={toolbarState.blockFormattingDisabled ? blockFormattingHint : 'Quote'}
+                  active={toolbarState.blockquote}
                   onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                  disabled={!editor}
+                  disabled={!editor || toolbarState.blockFormattingDisabled}
                 >
                   <Quote size={16} />
                 </ToolbarButton>
               </div>
+
+              {toolbarState.blockFormattingDisabled && (
+                <p className="mt-3 text-xs text-slate-400">
+                  {blockFormattingHint}
+                </p>
+              )}
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
