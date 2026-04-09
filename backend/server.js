@@ -41,6 +41,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/documents', require('./routes/documents'));
 app.use('/api/public/documents', require('./routes/publicDocuments'));
+app.use('/api/public/code', require('./routes/publicCode'));
 app.use('/api/rooms', require('./routes/rooms'));
 
 // Socket.io Logic

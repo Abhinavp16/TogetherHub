@@ -16,7 +16,7 @@ const createCollaborationServer = () => {
         async onLoadDocument(data) {
             const persistedDocument = await Document.findById(data.documentName).select('type shareAccess yjsState');
 
-            if (!persistedDocument || persistedDocument.type !== 'text') {
+            if (!persistedDocument || !['text', 'code'].includes(persistedDocument.type)) {
                 throw new Error('Collaborative document not found');
             }
 

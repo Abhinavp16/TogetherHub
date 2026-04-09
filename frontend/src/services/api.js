@@ -51,6 +51,11 @@ export const publicDocumentAPI = {
   updateDocument: (id, data) => api.patch(`/public/documents/${id}`, data)
 }
 
+export const publicCodeAPI = {
+  getDocument: (id) => api.get(`/public/code/${id}`),
+  updateDocument: (id, data) => api.patch(`/public/code/${id}`, data)
+}
+
 // Room API
 export const roomAPI = {
   getRooms: () => api.get('/rooms'),
