@@ -980,3 +980,125 @@
     @apply translate-x-0;
   }
 }
+
+.document-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.document-toolbar-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.document-toolbar-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.document-toolbar-button--active {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(96, 165, 250, 0.45);
+  color: #bfdbfe;
+}
+
+.document-tiptap {
+  min-height: 68vh;
+  color: #0f172a;
+  line-height: 1.8;
+}
+
+.document-tiptap > * + * {
+  margin-top: 1rem;
+}
+
+.document-tiptap h1,
+.document-tiptap h2 {
+  color: #020617;
+  letter-spacing: -0.03em;
+}
+
+.document-tiptap h1 {
+  font-size: 2rem;
+}
+
+.document-tiptap h2 {
+  font-size: 1.5rem;
+}
+
+.document-tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94a3b8;
+  pointer-events: none;
+  height: 0;
+}
+
+.document-tiptap ul,
+.document-tiptap ol {
+  padding-left: 1.5rem;
+}
+
+.document-tiptap blockquote {
+  margin: 1.5rem 0;
+  border-left: 4px solid rgba(59, 130, 246, 0.28);
+  padding-left: 1rem;
+  color: #334155;
+}
+
+.document-tiptap code {
+  border-radius: 10px;
+  background: #e2e8f0;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.92em;
+}
+
+.document-tiptap pre {
+  overflow-x: auto;
+  border-radius: 18px;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 1rem 1.1rem;
+}
+
+.document-tiptap pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.collaboration-cursor__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 2px solid #2563eb;
+  border-right: 2px solid transparent;
+  pointer-events: none;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  top: -1.5rem;
+  left: -1px;
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.collaboration-cursor__selection {
+  border-radius: 0.2rem;
+}

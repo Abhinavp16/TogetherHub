@@ -4,6 +4,7 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 const http = require('http');
 const { Server } = require('socket.io');
+const { createCollaborationServer } = require('./collaborationServer');
 require('dotenv').config();
 
 const app = express();
@@ -39,6 +40,7 @@ mongoose.connect(MONGODB_URI)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/documents', require('./routes/documents'));
+app.use('/api/public/documents', require('./routes/publicDocuments'));
 app.use('/api/rooms', require('./routes/rooms'));
 
 // Socket.io Logic
@@ -249,7 +251,15 @@ app.get('/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const collaborationServer = createCollaborationServer();
 
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+});
+
+collaborationServer.listen().then(() => {
+    const collabPort = process.env.COLLAB_PORT || 1234;
+    console.log(`Collaboration server is running on port ${collabPort}`);
+}).catch((error) => {
+    console.error('Failed to start collaboration server:', error);
 });

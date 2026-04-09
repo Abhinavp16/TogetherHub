@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const SERVER_BASE_URL = import.meta.env.VITE_SERVER_URL || API_BASE_URL.replace(/\/api$/, '')
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -45,6 +46,11 @@ export const documentAPI = {
   getDocuments: () => api.get('/documents')
 }
 
+export const publicDocumentAPI = {
+  getDocument: (id) => api.get(`/public/documents/${id}`),
+  updateDocument: (id, data) => api.patch(`/public/documents/${id}`, data)
+}
+
 // Room API
 export const roomAPI = {
   getRooms: () => api.get('/rooms'),
@@ -66,6 +72,22 @@ export const userAPI = {
   getProfile: () => api.get('/users/profile'),
   updateProfile: (data) => api.put('/users/profile', data),
   getUsers: () => api.get('/users')
+}
+
+export const getCollaborationUrl = () => {
+  if (import.meta.env.VITE_COLLAB_URL) {
+    return import.meta.env.VITE_COLLAB_URL
+  }
+
+  try {
+    const url = new URL(SERVER_BASE_URL)
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    url.port = import.meta.env.VITE_COLLAB_PORT || '1234'
+    url.pathname = ''
+    return url.toString().replace(/\/$/, '')
+  } catch (error) {
+    return 'ws://localhost:1234'
+  }
 }
 
 export default api

@@ -51,10 +51,12 @@ function App() {
                     <WorkspaceLayout />
                   </ProtectedRoute>
                 }>
-                  <Route path="/document/:roomId" element={<DocumentEditor />} />
                   <Route path="/code/:roomId" element={<CodeEditor />} />
                   <Route path="/whiteboard/:roomId" element={<Whiteboard />} />
                   <Route path="/video/:roomId" element={<MeetingRoom />} />
+                </Route>
+                <Route element={<WorkspaceLayout />}>
+                  <Route path="/document/:roomId" element={<DocumentEditor />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </Routes>

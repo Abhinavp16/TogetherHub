@@ -28,6 +28,15 @@ const documentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
+    shareAccess: {
+        type: String,
+        enum: ['link', 'private'],
+        default: 'link'
+    },
+    yjsState: {
+        type: Buffer,
+        default: null
+    },
     lastModified: {
         type: Date,
         default: Date.now
