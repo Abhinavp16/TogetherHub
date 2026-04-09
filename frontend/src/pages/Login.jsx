@@ -37,7 +37,7 @@ const Login = () => {
   const navigate = useNavigate()
 
   const fillDemoCredentials = () => {
-    setEmail('Abhinav16')
+    setEmail('abhinav16')
     setPassword('123456')
   }
 
@@ -137,14 +137,14 @@ const Login = () => {
 
             <form onSubmit={handleSubmit} className="auth-login-form">
               <div className="auth-form-group">
-                <label>Username / Email</label>
+                <label>Email</label>
                 <div className="auth-input-wrap">
                   <Mail size={20} className="auth-input-icon" />
                   <input
                     type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Username or email"
+                    placeholder="Enter your email"
                     required
                   />
                 </div>

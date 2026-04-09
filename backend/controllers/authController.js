@@ -4,14 +4,15 @@ const jwt = require('jsonwebtoken');
 exports.signup = async (req, res) => {
     try {
         const { name, email, password } = req.body;
+        const normalizedEmail = email?.trim().toLowerCase();
 
         // Check if user already exists
-        const existingUser = await User.findOne({ email });
+        const existingUser = await User.findOne({ email: normalizedEmail });
         if (existingUser) {
             return res.status(400).json({ message: 'User already exists' });
         }
 
-        const user = new User({ name, email, password });
+        const user = new User({ name, email: normalizedEmail, password });
         await user.save();
 
         const token = jwt.sign({ _id: user._id.toString() }, process.env.JWT_SECRET || 'your_jwt_secret_key');
@@ -33,7 +34,8 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const user = await User.findOne({ email });
+        const normalizedEmail = email?.trim().toLowerCase();
+        const user = await User.findOne({ email: normalizedEmail });
 
         if (!user || !(await user.comparePassword(password))) {
             return res.status(401).json({ message: 'Invalid login credentials' });

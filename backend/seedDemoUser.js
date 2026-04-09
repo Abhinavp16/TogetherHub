@@ -4,12 +4,12 @@ const User = require('./models/User');
 mongoose.connect('mongodb://localhost:27017/togetherhub')
     .then(async () => {
         try {
-            const email = 'Abhinav16';
+            const email = 'abhinav16';
             const existingUser = await User.findOne({ email });
             if (!existingUser) {
                 const user = new User({
                     name: 'Demo User',
-                    email: 'Abhinav16',
+                    email,
                     password: '123456'
                 });
                 await user.save();
