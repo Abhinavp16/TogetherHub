@@ -27,12 +27,20 @@ const buildSharedDocumentResponse = (document) => {
         return response;
     }
 
+    if (document.type === 'whiteboard') {
+        return response;
+    }
+
     return response;
 };
 
 const getUntitledTitle = (type) => {
     if (type === 'code') {
         return 'Untitled Code Workspace';
+    }
+
+    if (type === 'whiteboard') {
+        return 'Untitled Whiteboard';
     }
 
     return 'Untitled Document';
@@ -204,4 +212,22 @@ exports.getSharedCodeDocument = async (req, res) => {
 
 exports.updateSharedCodeDocument = async (req, res) => {
     return updateSharedDocumentByType(req, res, 'code');
+};
+
+exports.getSharedWhiteboardDocument = async (req, res) => {
+    try {
+        const document = await getSharedDocumentForType(req.params.id, 'whiteboard');
+
+        if (!document) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+
+        res.json(buildSharedDocumentResponse(document));
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.updateSharedWhiteboardDocument = async (req, res) => {
+    return updateSharedDocumentByType(req, res, 'whiteboard');
 };
