@@ -102,7 +102,7 @@ const RoomList = () => {
   const handleJoinRoom = async (room) => {
     try {
       const response = await roomAPI.joinRoom(room._id)
-      const joinPath = getJoinPath(response.data)
+      const joinPath = response.data.joinPath || getJoinPath(response.data)
 
       if (!joinPath) {
         toast.error('This room does not have a workspace yet')
