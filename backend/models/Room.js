@@ -25,6 +25,11 @@ const roomSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    documentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Document',
+        default: null
+    },
     members: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'

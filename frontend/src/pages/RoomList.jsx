@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Users, FileText, Code, PenTool, Clock, Search, UserPlus, Video } from 'lucide-react'
 import CreateRoomModal from '../components/UI/CreateRoomModal'
 import { roomAPI } from '../services/api'
@@ -14,6 +14,7 @@ const RoomList = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedRoomForParticipant, setSelectedRoomForParticipant] = useState(null)
   const [participantEmail, setParticipantEmail] = useState('')
+  const navigate = useNavigate()
 
   const fetchRooms = async () => {
     try {
@@ -68,6 +69,49 @@ const RoomList = () => {
       }
       setParticipantEmail('')
       setSelectedRoomForParticipant(null)
+    }
+  }
+
+  const getWorkspaceId = (room) => {
+    if (!room) {
+      return null
+    }
+
+    if (room.type === 'video') {
+      return room._id
+    }
+
+    if (typeof room.documentId === 'string') {
+      return room.documentId
+    }
+
+    return room.documentId?._id || null
+  }
+
+  const getJoinPath = (room) => {
+    const workspaceId = getWorkspaceId(room)
+
+    if (!workspaceId) {
+      return null
+    }
+
+    const routeSegment = room.type === 'document' ? 'document' : room.type
+    return `/${routeSegment}/${workspaceId}`
+  }
+
+  const handleJoinRoom = async (room) => {
+    try {
+      const response = await roomAPI.joinRoom(room._id)
+      const joinPath = getJoinPath(response.data)
+
+      if (!joinPath) {
+        toast.error('This room does not have a workspace yet')
+        return
+      }
+
+      navigate(joinPath)
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to join room')
     }
   }
 
@@ -231,12 +275,13 @@ const RoomList = () => {
                         <span className="text-sm">Add</span>
                       </button>
 
-                      <Link
-                        to={`/${room.type}/${room._id}`}
+                      <button
+                        type="button"
+                        onClick={() => handleJoinRoom(room)}
                         className="px-5 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-[#0ea5e9] dark:hover:bg-blue-500 text-white rounded-lg transition-colors font-bold shadow-md shadow-slate-900/10 dark:shadow-blue-500/20"
                       >
                         Join
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 </div>
