@@ -53,20 +53,12 @@ const Login = () => {
 
   const handleGoogleLogin = async () => {
     setLoading(true)
-    const result = await loginWithGoogle()
-    setLoading(false)
-    if (result.success) {
-      navigate('/')
-    }
+    await loginWithGoogle()
   }
 
   const handleGithubLogin = async () => {
     setLoading(true)
-    const result = await loginWithGithub()
-    setLoading(false)
-    if (result.success) {
-      navigate('/')
-    }
+    await loginWithGithub()
   }
 
   return (

@@ -66,6 +66,8 @@ export const roomAPI = {
   getRooms: () => api.get('/rooms'),
   getRoom: (id) => api.get(`/rooms/${id}`),
   createRoom: (data) => api.post('/rooms', data),
+  addInvite: (id, data) => api.post(`/rooms/${id}/invites`, data),
+  addTeamInvites: (id, data) => api.post(`/rooms/${id}/team-invites`, data),
   joinRoom: (id, data = {}) => api.post(`/rooms/${id}/join`, data),
   leaveRoom: (id) => api.post(`/rooms/${id}/leave`)
 }
@@ -74,7 +76,8 @@ export const roomAPI = {
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   signup: (userData) => api.post('/auth/signup', userData),
-  getMe: () => api.get('/auth/me')
+  getMe: () => api.get('/auth/me'),
+  getOAuthStartUrl: (provider) => `${SERVER_BASE_URL}/api/auth/${provider}/start`
 }
 
 // User API
@@ -82,6 +85,19 @@ export const userAPI = {
   getProfile: () => api.get('/users/profile'),
   updateProfile: (data) => api.put('/users/profile', data),
   getUsers: () => api.get('/users')
+}
+
+export const teamAPI = {
+  getTeams: () => api.get('/teams'),
+  getTeam: (id) => api.get(`/teams/${id}`),
+  createTeam: (data) => api.post('/teams', data),
+  addMember: (id, data) => api.post(`/teams/${id}/members`, data),
+  updateMember: (id, userId, data) => api.patch(`/teams/${id}/members/${userId}`, data),
+  removeMember: (id, userId) => api.delete(`/teams/${id}/members/${userId}`)
+}
+
+export const dashboardAPI = {
+  getSummary: () => api.get('/dashboard/summary')
 }
 
 export const getCollaborationUrl = () => {
@@ -101,3 +117,4 @@ export const getCollaborationUrl = () => {
 }
 
 export default api
+export { API_BASE_URL, SERVER_BASE_URL }

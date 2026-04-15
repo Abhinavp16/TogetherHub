@@ -33,14 +33,18 @@ export const AuthProvider = ({ children }) => {
     initAuth()
   }, [])
 
+  const persistSession = (token, user) => {
+    localStorage.setItem('authToken', token)
+    localStorage.setItem('user', JSON.stringify(user))
+    setUser(user)
+  }
+
   const login = async (email, password) => {
     try {
       const response = await authAPI.login({ email, password })
       const { user, token } = response.data
 
-      localStorage.setItem('authToken', token)
-      localStorage.setItem('user', JSON.stringify(user))
-      setUser(user)
+      persistSession(token, user)
       toast.success(`Welcome back, ${user.name}!`)
       return { success: true }
     } catch (error) {
@@ -55,9 +59,7 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.signup({ name, email, password })
       const { user, token } = response.data
 
-      localStorage.setItem('authToken', token)
-      localStorage.setItem('user', JSON.stringify(user))
-      setUser(user)
+      persistSession(token, user)
       toast.success('Account created successfully!')
       return { success: true }
     } catch (error) {
@@ -67,46 +69,24 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const loginWithGoogle = async () => {
+  const startOAuth = async (provider) => {
     try {
-      // Simulate OAuth login
-      const mockUser = {
-        id: Date.now(),
-        email: 'user@gmail.com',
-        name: 'Google User',
-        avatar: 'https://ui-avatars.com/api/?name=Google+User&background=4285f4',
-        provider: 'google'
-      }
-
-      localStorage.setItem('user', JSON.stringify(mockUser))
-      setUser(mockUser)
-      toast.success('Logged in with Google!')
+      window.location.assign(authAPI.getOAuthStartUrl(provider))
       return { success: true }
     } catch (error) {
-      toast.error('Google login failed')
+      toast.error(`${provider} login failed`)
       return { success: false, error: error.message }
     }
   }
 
-  const loginWithGithub = async () => {
-    try {
-      // Simulate OAuth login
-      const mockUser = {
-        id: Date.now(),
-        email: 'user@github.com',
-        name: 'GitHub User',
-        avatar: 'https://ui-avatars.com/api/?name=GitHub+User&background=24292e',
-        provider: 'github'
-      }
+  const loginWithGoogle = async () => startOAuth('google')
 
-      localStorage.setItem('user', JSON.stringify(mockUser))
-      setUser(mockUser)
-      toast.success('Logged in with GitHub!')
-      return { success: true }
-    } catch (error) {
-      toast.error('GitHub login failed')
-      return { success: false, error: error.message }
-    }
+  const loginWithGithub = async () => {
+    return startOAuth('github')
+  }
+
+  const completeOAuthLogin = (token, user) => {
+    persistSession(token, user)
   }
 
   const logout = () => {
@@ -124,6 +104,7 @@ export const AuthProvider = ({ children }) => {
       signup,
       loginWithGoogle,
       loginWithGithub,
+      completeOAuthLogin,
       logout
     }}>
       {children}

@@ -1,312 +1,393 @@
-import { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { X, FileText, Code, PenTool, UserPlus, XCircle, Check, Users, Video } from 'lucide-react';
-import { roomAPI } from '../../services/api';
-import toast from 'react-hot-toast';
+import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { X, FileText, Code, PenTool, Check, Video, Users, Mail, Plus } from 'lucide-react'
+import { roomAPI, teamAPI } from '../../services/api'
+import toast from 'react-hot-toast'
+
+const ROOM_TYPES = [
+  {
+    value: 'document',
+    label: 'Document',
+    description: 'Rich text docs',
+    icon: FileText,
+    color: 'text-blue-500'
+  },
+  {
+    value: 'code',
+    label: 'Code Editor',
+    description: 'Pair programming',
+    icon: Code,
+    color: 'text-emerald-500'
+  },
+  {
+    value: 'whiteboard',
+    label: 'Whiteboard',
+    description: 'Flowcharts and ideas',
+    icon: PenTool,
+    color: 'text-purple-500'
+  },
+  {
+    value: 'video',
+    label: 'Video Call',
+    description: 'Face to face sync',
+    icon: Video,
+    color: 'text-rose-500'
+  }
+]
+
+const defaultFormState = {
+  name: '',
+  description: '',
+  type: 'document',
+  isPrivate: false,
+  invites: [],
+  teamId: ''
+}
 
 const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
-  const modalRef = useRef(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    type: 'document',
-    isPrivate: false,
-    invites: []
-  });
-  const [selectedTeam, setSelectedTeam] = useState('');
+  const modalRef = useRef(null)
+  const [formData, setFormData] = useState(defaultFormState)
+  const [emailInput, setEmailInput] = useState('')
+  const [isValidEmail, setIsValidEmail] = useState(true)
+  const [teams, setTeams] = useState([])
+  const [loadingTeams, setLoadingTeams] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const availableTeams = [
-    {
-      id: 't1', name: 'General Workspace',
-      members: ['abhinav@togetherhub.test', 'sarah.j@togetherhub.test', 'marcus@togetherhub.test', 'elena.r@togetherhub.test', 'david.s@togetherhub.test']
-    },
-    {
-      id: 't2', name: 'Frontend Reboot',
-      members: ['abhinav@togetherhub.test', 'marcus@togetherhub.test', 'elena.r@togetherhub.test']
-    },
-    {
-      id: 't3', name: 'Marketing Assets',
-      members: ['sarah.j@togetherhub.test', 'david.s@togetherhub.test']
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData(defaultFormState)
+      setEmailInput('')
+      setIsValidEmail(true)
+      return
     }
-  ];
-  const [emailInput, setEmailInput] = useState('');
-  const [isValidEmail, setIsValidEmail] = useState(true);
-  const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
+    const loadTeams = async () => {
+      setLoadingTeams(true)
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (formData.name.trim()) {
-      setLoading(true);
       try {
-        const response = await roomAPI.createRoom(formData);
-        toast.success('Room created successfully');
-        onCreate(response.data);
-        onClose();
+        const response = await teamAPI.getTeams()
+        setTeams(response.data)
       } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to create room');
+        toast.error(error.response?.data?.message || 'Failed to load teams')
       } finally {
-        setLoading(false);
+        setLoadingTeams(false)
       }
     }
-  };
 
-  // Handle click outside to close modal
+    loadTeams()
+  }, [isOpen])
+
   useEffect(() => {
-    function handleClickOutside(event) {
+    const handleClickOutside = (event) => {
       if (modalRef.current && !modalRef.current.contains(event.target)) {
-        onClose();
+        onClose()
       }
     }
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = 'hidden';
+      document.addEventListener('mousedown', handleClickOutside)
+      document.body.style.overflow = 'hidden'
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, onClose]);
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen, onClose])
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null
+  }
 
-  const validateEmail = (email) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
+  const handleChange = (event) => {
+    const { name, value, type, checked } = event.target
+    setFormData((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value
+    }))
+  }
+
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 
   const handleAddInvite = () => {
-    if (emailInput && validateEmail(emailInput) && !formData.invites.includes(emailInput)) {
-      setFormData(prev => ({
-        ...prev,
-        invites: [...prev.invites, emailInput]
-      }));
-      setEmailInput('');
-      setIsValidEmail(true);
-    } else if (emailInput && !validateEmail(emailInput)) {
-      setIsValidEmail(false);
-    }
-  };
+    const email = emailInput.trim().toLowerCase()
 
-  const removeInvite = (emailToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      invites: prev.invites.filter(email => email !== emailToRemove)
-    }));
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      handleAddInvite();
+    if (!email) {
+      return
     }
-  };
+
+    if (!validateEmail(email)) {
+      setIsValidEmail(false)
+      return
+    }
+
+    setFormData((current) => ({
+      ...current,
+      invites: current.invites.includes(email) ? current.invites : [...current.invites, email]
+    }))
+    setEmailInput('')
+    setIsValidEmail(true)
+  }
+
+  const handleRemoveInvite = (emailToRemove) => {
+    setFormData((current) => ({
+      ...current,
+      invites: current.invites.filter((email) => email !== emailToRemove)
+    }))
+  }
+
+  const handleInviteKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ',') {
+      event.preventDefault()
+      handleAddInvite()
+    }
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+
+    if (!formData.name.trim()) {
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const payload = {
+        ...formData,
+        teamId: formData.teamId || undefined
+      }
+
+      const response = await roomAPI.createRoom(payload)
+      toast.success('Room created successfully')
+      onCreate(response.data)
+      onClose()
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to create room')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const modalContent = (
     <div className="fixed inset-0 z-[100] bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4 sm:p-6">
       <div
         ref={modalRef}
-        className="relative w-full max-w-[840px] max-h-[95vh] flex flex-col bg-white dark:bg-[#0b0f19] rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] text-left transition-all border border-slate-200 dark:border-white/5 animate-fade-in-up overflow-hidden"
+        className="relative w-full max-w-4xl max-h-[95vh] flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] dark:border-white/5 dark:bg-[#0b0f19]"
       >
-        {/* Header */}
-        <div className="px-8 pt-8 pb-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
-          <div className="space-y-1">
-            <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Create collaborative space</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Set up your room, tools, and team access.</p>
+        <div className="flex items-center justify-between border-b border-slate-100 px-8 pb-6 pt-8 dark:border-white/5">
+          <div>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Create collaborative space</h3>
+            <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+              Set up the workspace, privacy, and invite list in one place.
+            </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+            className="rounded-full p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-200"
             aria-label="Close modal"
           >
             <X size={20} className="stroke-[2.5]" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col overflow-y-auto flex-1 custom-scrollbar">
-          <div className="flex flex-col md:flex-row flex-1">
-            {/* Left Column */}
-            <div className="w-full md:w-1/2 px-8 py-7 space-y-7 border-b md:border-b-0 md:border-r border-slate-100 dark:border-white/5">
-              {/* Room Name */}
+        <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-y-auto">
+          <div className="grid gap-0 md:grid-cols-2">
+            <div className="space-y-6 border-b border-slate-100 px-8 py-7 dark:border-white/5 md:border-b-0 md:border-r">
               <div className="space-y-2">
                 <label htmlFor="name" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Room Name <span className="text-indigo-500 dark:text-indigo-400">*</span>
+                  Room Name
                 </label>
                 <input
-                  type="text"
                   id="name"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium text-base shadow-sm"
-                  placeholder="e.g. Frontend Architecture Review"
+                  placeholder="e.g. Sprint Planning"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3.5 text-base font-medium text-slate-900 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:border-transparent dark:bg-[#1e293b] dark:text-white"
                   required
                 />
               </div>
 
-              {/* Description */}
               <div className="space-y-2">
                 <label htmlFor="description" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Short Description <span className="text-slate-400 font-normal ml-1">(Optional)</span>
+                  Description
                 </label>
                 <textarea
                   id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  rows="2"
-                  className="w-full px-5 py-3.5 bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium resize-none shadow-sm block"
-                  placeholder="What is the main objective of this room?"
+                  rows="3"
+                  placeholder="What is this room for?"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3.5 font-medium text-slate-900 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:border-transparent dark:bg-[#1e293b] dark:text-white"
                 />
               </div>
-            </div> {/* Close Left Column */}
 
-            {/* Right Column */}
-            <div className="w-full md:w-1/2 px-8 py-7 space-y-6">
-              {/* Primary Activity */}
               <div className="space-y-3">
-                <span className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  Primary Tool
-                </span>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    {
-                      value: 'document',
-                      label: 'Document',
-                      icon: <FileText size={20} className="text-blue-500 relative z-10" />,
-                      description: 'Rich text docs',
-                      bgGraphic: (
-                        <div className="absolute inset-0 right-0 overflow-hidden rounded-2xl opacity-40 transition-opacity group-hover:opacity-100">
-                          <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl transition-all group-hover:scale-150"></div>
-                          <div className="absolute top-2 right-2 w-16 h-12 border-t-2 border-r-2 border-blue-500/20 rounded-tr-xl transform translate-x-2 -translate-y-2 group-hover:translate-x-0 group-hover:translate-y-0 transition-transform"></div>
-                          <FileText size={48} className="absolute -bottom-2 -right-2 text-blue-500/10 transform rotate-12 group-hover:-rotate-12 transition-transform duration-500" />
-                        </div>
-                      )
-                    },
-                    {
-                      value: 'code',
-                      label: 'Code Editor',
-                      icon: <Code size={20} className="text-emerald-500 relative z-10" />,
-                      description: 'Pair programming',
-                      bgGraphic: (
-                        <div className="absolute inset-0 overflow-hidden rounded-2xl opacity-40 transition-opacity group-hover:opacity-100">
-                          <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl transition-all group-hover:scale-150"></div>
-                          <div className="absolute bottom-2 right-2 flex space-x-1 opacity-20 relative z-0">
-                            <div className="w-1.5 h-6 bg-emerald-500 rounded-full transform group-hover:scale-y-150 transition-transform"></div>
-                            <div className="w-1.5 h-4 bg-emerald-500 rounded-full transform group-hover:scale-y-150 transition-transform delay-75"></div>
-                            <div className="w-1.5 h-8 bg-emerald-500 rounded-full transform group-hover:scale-y-150 transition-transform delay-150"></div>
-                          </div>
-                          <Code size={48} className="absolute -bottom-2 -right-2 text-emerald-500/10 transform -rotate-12 group-hover:rotate-12 transition-transform duration-500" />
-                        </div>
-                      )
-                    },
-                    {
-                      value: 'whiteboard',
-                      label: 'Whiteboard',
-                      icon: <PenTool size={20} className="text-purple-500 relative z-10" />,
-                      description: 'Flowcharts & ideas',
-                      bgGraphic: (
-                        <div className="absolute inset-0 overflow-hidden rounded-2xl opacity-40 transition-opacity group-hover:opacity-100">
-                          <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-purple-500/10 rounded-full blur-xl transition-all group-hover:scale-150"></div>
-                          <svg className="absolute top-0 right-0 w-16 h-16 text-purple-500/20 transform translate-x-4 -translate-y-4 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="4" fill="none" strokeDasharray="10 10" />
-                          </svg>
-                          <PenTool size={48} className="absolute -bottom-2 -right-2 text-purple-500/10 transform rotate-45 group-hover:rotate-90 transition-transform duration-500" />
-                        </div>
-                      )
-                    },
-                    {
-                      value: 'video',
-                      label: 'Video Call',
-                      icon: <Video size={20} className="text-rose-500 relative z-10" />,
-                      description: 'Face to face sync',
-                      bgGraphic: (
-                        <div className="absolute inset-0 overflow-hidden rounded-2xl opacity-40 transition-opacity group-hover:opacity-100">
-                          <div className="absolute -right-4 top-1/2 -translate-y-1/2 w-24 h-24 bg-rose-500/10 rounded-full blur-xl transition-all group-hover:scale-150"></div>
-                          <div className="absolute top-2 right-2 flex space-x-1.5 opacity-20">
-                            <div className="w-2 h-2 rounded-full bg-rose-500 group-hover:animate-ping"></div>
-                            <div className="w-2 h-2 rounded-full bg-rose-500"></div>
-                          </div>
-                          <Video size={48} className="absolute -bottom-2 -right-2 text-rose-500/10 transform -rotate-12 group-hover:rotate-0 transition-transform duration-500" />
-                        </div>
-                      )
-                    }
-                  ].map((type) => (
-                    <label
-                      key={type.value}
-                      className={`group relative p-4 border rounded-2xl cursor-pointer transition-all duration-200 block overflow-hidden ${formData.type === type.value
-                        ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-500/10 shadow-sm'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                        }`}
-                    >
-                      {type.bgGraphic}
-                      <input
-                        type="radio"
-                        name="type"
-                        value={type.value}
-                        checked={formData.type === type.value}
-                        onChange={handleChange}
-                        className="sr-only"
-                      />
-                      <div className="flex flex-col space-y-2 relative z-10">
-                        <div className={`p-2.5 rounded-xl w-max transition-colors relative ${formData.type === type.value
-                          ? 'bg-white shadow-sm dark:bg-slate-800'
-                          : 'bg-slate-100 dark:bg-[#1e293b]'
-                          }`}>
-                          {type.icon}
-                        </div>
-                        <div className="space-y-0.5 pt-1">
-                          <span className={`block text-sm font-bold ${formData.type === type.value ? 'text-indigo-900 dark:text-indigo-100' : 'text-slate-700 dark:text-slate-300'}`}>
-                            {type.label}
-                          </span>
-                          <span className={`block text-xs font-medium ${formData.type === type.value ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}`}>
-                            {type.description}
-                          </span>
-                        </div>
-                      </div>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Visibility
+                </label>
+                <label className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 dark:border-white/10 dark:bg-white/[0.03]">
+                  <div>
+                    <p className="font-semibold text-slate-900 dark:text-white">Private room</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Only members and invited emails can join.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    name="isPrivate"
+                    checked={formData.isPrivate}
+                    onChange={handleChange}
+                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                </label>
+              </div>
 
-                      {/* Active Indicator Ring */}
-                      {formData.type === type.value && (
-                        <div className="absolute top-4 right-4 text-indigo-500 animate-fade-in-up z-20">
-                          <Check size={18} strokeWidth={3} />
-                        </div>
-                      )}
-                    </label>
-                  ))}
+              <div className="space-y-3">
+                <label htmlFor="teamId" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Invite a Team
+                </label>
+                <div className="relative">
+                  <Users className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <select
+                    id="teamId"
+                    name="teamId"
+                    value={formData.teamId}
+                    onChange={handleChange}
+                    className="w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-4 font-medium text-slate-900 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:border-white/10 dark:bg-white/[0.03] dark:text-white"
+                  >
+                    <option value="">No team selected</option>
+                    {teams.map((team) => (
+                      <option key={team._id} value={team._id}>
+                        {team.name} ({team.memberCount} members)
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div> {/* Close Primary Activity */}
-            </div> {/* Close Right Column */}
-          </div> {/* Close Flex row */}
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {loadingTeams ? 'Loading teams...' : 'Select one real team to prefill room invites.'}
+                </p>
+              </div>
+            </div>
 
-          {/* Footer */}
-          <div className="px-8 py-5 bg-slate-50 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between shrink-0 space-y-4 sm:space-y-0">
+            <div className="space-y-6 px-8 py-7">
+              <div className="space-y-3">
+                <span className="block text-sm font-semibold text-slate-700 dark:text-slate-200">Primary Tool</span>
+                <div className="grid grid-cols-2 gap-3">
+                  {ROOM_TYPES.map((type) => {
+                    const Icon = type.icon
+
+                    return (
+                      <label
+                        key={type.value}
+                        className={`relative cursor-pointer overflow-hidden rounded-2xl border p-4 transition-all ${
+                          formData.type === type.value
+                            ? 'border-indigo-500 bg-indigo-50/50 shadow-sm dark:bg-indigo-500/10'
+                            : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:border-slate-500 dark:hover:bg-slate-800/50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="type"
+                          value={type.value}
+                          checked={formData.type === type.value}
+                          onChange={handleChange}
+                          className="sr-only"
+                        />
+                        <div className="flex flex-col space-y-2">
+                          <div className={`w-max rounded-xl p-2.5 ${formData.type === type.value ? 'bg-white dark:bg-slate-800' : 'bg-slate-100 dark:bg-[#1e293b]'}`}>
+                            <Icon size={20} className={type.color} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">{type.label}</p>
+                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{type.description}</p>
+                          </div>
+                        </div>
+                        {formData.type === type.value && (
+                          <div className="absolute right-4 top-4 text-indigo-500">
+                            <Check size={18} strokeWidth={3} />
+                          </div>
+                        )}
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Invite by Email
+                </label>
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <Mail className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                      type="email"
+                      value={emailInput}
+                      onChange={(event) => {
+                        setEmailInput(event.target.value)
+                        setIsValidEmail(true)
+                      }}
+                      onKeyDown={handleInviteKeyDown}
+                      placeholder="teammate@example.com"
+                      className={`w-full rounded-2xl border bg-slate-50 py-3.5 pl-11 pr-4 font-medium text-slate-900 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:bg-white/[0.03] dark:text-white ${
+                        isValidEmail ? 'border-slate-200 dark:border-white/10' : 'border-red-400'
+                      }`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddInvite}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo-700"
+                  >
+                    <Plus size={16} />
+                    Add
+                  </button>
+                </div>
+                {!isValidEmail && (
+                  <p className="text-xs font-semibold text-red-500">Enter a valid email address to add an invite.</p>
+                )}
+                <div className="flex min-h-[3rem] flex-wrap gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+                  {formData.invites.length > 0 ? formData.invites.map((email) => (
+                    <button
+                      key={email}
+                      type="button"
+                      onClick={() => handleRemoveInvite(email)}
+                      className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-slate-700 dark:bg-white/10"
+                    >
+                      {email} ×
+                    </button>
+                  )) : (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">No manual invites added yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-100 bg-slate-50 px-8 py-5 dark:border-white/5 dark:bg-white/[0.02] sm:flex-row">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Created rooms are instantly available.
+              Teams and manual email invites are merged automatically when the room is created.
             </p>
-            <div className="flex w-full sm:w-auto space-x-3">
+            <div className="flex w-full gap-3 sm:w-auto">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-3 text-sm font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-[#1e293b] border border-slate-200 dark:border-transparent rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors focus:ring-2 focus:ring-slate-200 dark:focus:ring-white/10 flex-1 sm:flex-none shadow-sm"
+                className="flex-1 rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-transparent dark:bg-[#1e293b] dark:text-slate-300"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!formData.name.trim() || loading}
-                className={`px-8 py-3 text-sm font-bold text-white bg-indigo-600 dark:bg-indigo-500 rounded-2xl transition-all flex-1 sm:flex-none ${!formData.name.trim() || loading
-                  ? 'opacity-50 cursor-not-allowed'
-                  : 'hover:bg-indigo-700 dark:hover:bg-indigo-400 hover:-translate-y-px shadow-lg shadow-indigo-500/30'
-                  }`}
+                className={`flex-1 rounded-2xl px-8 py-3 text-sm font-bold text-white transition-all sm:flex-none ${
+                  !formData.name.trim() || loading
+                    ? 'cursor-not-allowed bg-indigo-400 opacity-60'
+                    : 'bg-indigo-600 shadow-lg shadow-indigo-500/30 hover:-translate-y-px hover:bg-indigo-700'
+                }`}
               >
                 {loading ? 'Creating space...' : 'Create Room'}
               </button>
@@ -315,9 +396,9 @@ const CreateRoomModal = ({ isOpen, onClose, onCreate }) => {
         </form>
       </div>
     </div>
-  );
+  )
 
-  return createPortal(modalContent, document.body);
-};
+  return createPortal(modalContent, document.body)
+}
 
-export default CreateRoomModal;
+export default CreateRoomModal

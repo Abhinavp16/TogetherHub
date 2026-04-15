@@ -8,6 +8,8 @@ router.use(auth);
 router.post('/', roomController.createRoom);
 router.get('/', roomController.getRooms);
 router.get('/:id', roomController.getRoom);
+router.post('/:id/invites', roomController.addInvite);
+router.post('/:id/team-invites', roomController.addTeamInvites);
 router.post('/:id/join', roomController.joinRoom);
 router.post('/:id/leave', roomController.leaveRoom);
 

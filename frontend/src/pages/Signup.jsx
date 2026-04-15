@@ -34,20 +34,12 @@ const Signup = () => {
 
   const handleGoogleSignup = async () => {
     setLoading(true)
-    const result = await loginWithGoogle()
-    setLoading(false)
-    if (result.success) {
-      navigate('/')
-    }
+    await loginWithGoogle()
   }
 
   const handleGithubSignup = async () => {
     setLoading(true)
-    const result = await loginWithGithub()
-    setLoading(false)
-    if (result.success) {
-      navigate('/')
-    }
+    await loginWithGithub()
   }
 
   return (

@@ -15,6 +15,7 @@ import Whiteboard from './pages/Whiteboard'
 import MeetingRoom from './pages/MeetingRoom'
 import RoomList from './pages/RoomList'
 import Team from './pages/Team'
+import AuthCallback from './pages/AuthCallback'
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/" element={
                   <ProtectedRoute>
                     <Layout />

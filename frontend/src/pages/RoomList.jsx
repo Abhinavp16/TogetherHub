@@ -61,11 +61,11 @@ const RoomList = () => {
   const handleAddParticipant = async (roomId) => {
     if (participantEmail.trim()) {
       try {
-        await roomAPI.joinRoom(roomId, { email: participantEmail })
-        toast.success('Participant added successfully')
+        await roomAPI.addInvite(roomId, { email: participantEmail })
+        toast.success('Invite added successfully')
         fetchRooms()
       } catch (error) {
-        toast.error('Failed to add participant')
+        toast.error(error.response?.data?.message || 'Failed to add participant')
       }
       setParticipantEmail('')
       setSelectedRoomForParticipant(null)
@@ -248,6 +248,10 @@ const RoomList = () => {
                           <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-[#0b0f19] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-white/5">
                             <Users size={14} className="text-slate-400" />
                             <span className="font-medium text-slate-700 dark:text-slate-300">{room.members?.length || 0} participants</span>
+                          </div>
+                          <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-[#0b0f19] px-2.5 py-1 rounded-lg border border-slate-200 dark:border-white/5">
+                            <UserPlus size={14} className="text-slate-400" />
+                            <span className="font-medium text-slate-700 dark:text-slate-300">{room.invites?.length || 0} pending invites</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <Clock size={14} />

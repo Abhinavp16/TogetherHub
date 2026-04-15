@@ -1,60 +1,61 @@
 import { Link } from 'react-router-dom'
-import { FileText, Code, PenTool, Users, Plus, Sparkles, Zap, Clock, Activity, ArrowRight, LayoutDashboard, Search, Star, MessageSquare, Bot, Video } from 'lucide-react'
-import { useNotifications } from '../contexts/NotificationContext'
-import { useState, useEffect } from 'react'
-import { documentAPI } from '../services/api'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  FileText,
+  Code,
+  PenTool,
+  Users,
+  Plus,
+  Zap,
+  Clock,
+  ArrowRight,
+  LayoutDashboard,
+  Video,
+  FolderKanban,
+  UserPlus
+} from 'lucide-react'
+import { dashboardAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+
+const iconMap = {
+  document: FileText,
+  code: Code,
+  whiteboard: PenTool,
+  video: Video
+}
+
+const colorMap = {
+  document: 'bg-blue-500 text-white',
+  code: 'bg-emerald-500 text-white',
+  whiteboard: 'bg-pink-500 text-white',
+  video: 'bg-rose-500 text-white'
+}
 
 const Home = () => {
   const { user } = useAuth()
-  const { success, warning, error, info } = useNotifications()
-
-  const [recentRooms, setRecentRooms] = useState([])
+  const [summary, setSummary] = useState({
+    stats: {
+      workspaceCount: 0,
+      roomCount: 0,
+      teamCount: 0,
+      collaboratorCount: 0
+    },
+    recentWorkspaces: [],
+    recentRooms: []
+  })
   const [loading, setLoading] = useState(true)
-  const [activeCardIndex, setActiveCardIndex] = useState(0)
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveCardIndex((prev) => (prev + 1) % 4) // Cycle through 4 static cards
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    const fetchRecent = async () => {
+    const loadSummary = async () => {
       try {
-        const response = await documentAPI.getDocuments()
-        const docs = response.data.slice(0, 4).map(doc => ({
-          id: doc._id,
-          title: doc.title,
-          type: doc.type,
-          icon: doc.type === 'code' ? Code : doc.type === 'whiteboard' ? PenTool : FileText,
-          lastEdited: new Date(doc.updatedAt).toLocaleDateString(),
-          collaborators: (doc.collaborators?.length || 0) + 1,
-          theme: doc.type === 'code'
-            ? 'emerald'
-            : doc.type === 'whiteboard'
-              ? 'pink'
-              : 'blue'
-        }))
-        setRecentRooms(docs.length > 0 ? docs : [
-          // Fallback dummy data if empty so UI looks good
-          { id: '1', title: 'Q3 Product Roadmap', type: 'document', icon: FileText, lastEdited: 'Just now', collaborators: 3, theme: 'blue' },
-          { id: '2', title: 'Authentication Service', type: 'code', icon: Code, lastEdited: '2 hrs ago', collaborators: 2, theme: 'emerald' },
-          { id: '3', title: 'Landing Page Flow', type: 'whiteboard', icon: PenTool, lastEdited: 'Yesterday', collaborators: 4, theme: 'pink' }
-        ])
-      } catch (error) {
-        // Fallback for demo
-        setRecentRooms([
-          { id: '1', title: 'Q3 Product Roadmap', type: 'document', icon: FileText, lastEdited: 'Just now', collaborators: 3, theme: 'blue' },
-          { id: '2', title: 'Authentication Service', type: 'code', icon: Code, lastEdited: '2 hrs ago', collaborators: 2, theme: 'emerald' },
-          { id: '3', title: 'Landing Page Flow', type: 'whiteboard', icon: PenTool, lastEdited: 'Yesterday', collaborators: 4, theme: 'pink' }
-        ])
+        const response = await dashboardAPI.getSummary()
+        setSummary(response.data)
       } finally {
         setLoading(false)
       }
     }
-    fetchRecent()
+
+    loadSummary()
   }, [])
 
   const tools = [
@@ -64,8 +65,7 @@ const Home = () => {
       icon: FileText,
       path: '/document/new',
       color: 'text-blue-500',
-      bg: 'bg-blue-50 dark:bg-blue-500/10',
-      border: 'group-hover:border-blue-500/50'
+      bg: 'bg-blue-50 dark:bg-blue-500/10'
     },
     {
       title: 'Code Editor',
@@ -73,8 +73,7 @@ const Home = () => {
       icon: Code,
       path: '/code/new',
       color: 'text-emerald-500',
-      bg: 'bg-emerald-50 dark:bg-emerald-500/10',
-      border: 'group-hover:border-emerald-500/50'
+      bg: 'bg-emerald-50 dark:bg-emerald-500/10'
     },
     {
       title: 'Whiteboard',
@@ -82,8 +81,7 @@ const Home = () => {
       icon: PenTool,
       path: '/whiteboard/new',
       color: 'text-pink-500',
-      bg: 'bg-pink-50 dark:bg-pink-500/10',
-      border: 'group-hover:border-pink-500/50'
+      bg: 'bg-pink-50 dark:bg-pink-500/10'
     },
     {
       title: 'Meeting Room',
@@ -91,305 +89,231 @@ const Home = () => {
       icon: Video,
       path: '/video/new',
       color: 'text-rose-500',
-      bg: 'bg-rose-50 dark:bg-rose-500/10',
-      border: 'group-hover:border-rose-500/50'
+      bg: 'bg-rose-50 dark:bg-rose-500/10'
     }
   ]
 
-  const statCards = [
+  const statCards = useMemo(() => [
     {
-      id: 1, name: "Lines of code", value: "1,248", trend: "+12%", trendUp: true, icon: Activity, iconColor: "text-indigo-600 dark:text-[#818cf8]", iconBg: "bg-indigo-100 dark:bg-[#2b2d4f]",
-      bgGraphic: (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-indigo-500/20 rounded-full blur-[40px] group-hover:scale-110 transition-transform duration-500"></div>
-          <Activity size={140} className="absolute -bottom-8 -right-8 text-indigo-500/10 transform rotate-[-15deg] group-hover:rotate-0 transition-transform duration-700" strokeWidth={1} />
-        </div>
-      )
+      label: 'Workspaces',
+      value: summary.stats.workspaceCount,
+      icon: FolderKanban,
+      color: 'text-indigo-600 dark:text-indigo-300',
+      bg: 'bg-indigo-100 dark:bg-indigo-500/10'
     },
     {
-      id: 2, name: "Docs Created", value: "42", trend: "+5%", trendUp: true, icon: FileText, iconColor: "text-blue-600 dark:text-[#60a5fa]", iconBg: "bg-blue-100 dark:bg-[#213555]",
-      bgGraphic: (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -left-12 top-1/2 -translate-y-1/2 w-48 h-48 bg-blue-500/20 rounded-full blur-[40px] group-hover:scale-110 transition-transform duration-500"></div>
-          <FileText size={140} className="absolute top-12 -right-8 text-blue-500/10 transform rotate-[15deg] group-hover:rotate-0 transition-transform duration-700" strokeWidth={1} />
-        </div>
-      )
+      label: 'Rooms',
+      value: summary.stats.roomCount,
+      icon: LayoutDashboard,
+      color: 'text-blue-600 dark:text-blue-300',
+      bg: 'bg-blue-100 dark:bg-blue-500/10'
     },
     {
-      id: 3, name: "Active Peers", value: "7", trend: "+2", trendUp: true, icon: Users, iconColor: "text-pink-600 dark:text-[#f472b6]", iconBg: "bg-pink-100 dark:bg-[#45253e]",
-      bgGraphic: (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute right-0 -bottom-12 w-full h-32 bg-pink-500/20 blur-[40px] group-hover:h-40 transition-all duration-500"></div>
-          <Users size={150} className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/4 text-pink-500/10 transform rotate-[-5deg] group-hover:scale-110 transition-transform duration-700" strokeWidth={1} />
-        </div>
-      )
+      label: 'Teams',
+      value: summary.stats.teamCount,
+      icon: Users,
+      color: 'text-pink-600 dark:text-pink-300',
+      bg: 'bg-pink-100 dark:bg-pink-500/10'
     },
     {
-      id: 4, name: "Hours Saved", value: "14h", trend: "+15%", trendUp: true, icon: Clock, iconColor: "text-emerald-600 dark:text-[#34d399]", iconBg: "bg-emerald-100 dark:bg-[#1d3d35]",
-      bgGraphic: (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-12 -right-12 w-48 h-48 bg-emerald-500/20 rounded-full blur-[40px] group-hover:scale-110 transition-transform duration-500"></div>
-          <Clock size={160} className="absolute -bottom-10 -left-10 text-emerald-500/10 transform rotate-[30deg] group-hover:rotate-45 transition-transform duration-700" strokeWidth={1} />
-        </div>
-      )
+      label: 'Collaborators',
+      value: summary.stats.collaboratorCount,
+      icon: UserPlus,
+      color: 'text-emerald-600 dark:text-emerald-300',
+      bg: 'bg-emerald-100 dark:bg-emerald-500/10'
     }
-  ]
+  ], [summary.stats])
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-12">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-[2.25rem] bg-indigo-50 dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.05)] dark:shadow-2xl animate-fade-in-up transition-colors duration-300">
-        {/* Background Effects */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-indigo-200/50 dark:from-indigo-500/30 to-purple-300/50 dark:to-purple-600/30 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3"></div>
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-pink-200/50 dark:from-pink-500/20 to-rose-300/50 dark:to-rose-500/20 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/3"></div>
+    <div className="mx-auto max-w-7xl space-y-8 pb-12">
+      <div className="overflow-hidden rounded-[2.25rem] border border-indigo-100 bg-indigo-50 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.05)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-2xl">
+        <div className="relative p-8 md:p-10">
+          <div className="absolute right-0 top-0 h-72 w-72 translate-x-1/3 -translate-y-1/3 rounded-full bg-gradient-to-br from-indigo-200/50 to-purple-300/50 blur-[100px] dark:from-indigo-500/30 dark:to-purple-600/30" />
+          <div className="absolute bottom-0 left-0 h-64 w-64 -translate-x-1/3 translate-y-1/3 rounded-full bg-gradient-to-tr from-pink-200/50 to-rose-300/50 blur-[80px] dark:from-pink-500/20 dark:to-rose-500/20" />
 
-        {/* Pattern overlay */}
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] dark:opacity-10"></div>
-
-        <div className="relative p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="text-center md:text-left z-10 w-full md:w-2/3">
-            <div className="inline-flex items-center space-x-2 bg-indigo-500/10 dark:bg-white/10 backdrop-blur-md border border-indigo-500/20 dark:border-white/20 rounded-full px-4 py-2 mb-4 shadow-sm dark:shadow-xl">
-              <Sparkles className="text-indigo-600 dark:text-yellow-400" size={16} />
-              <span className="text-sm font-semibold text-indigo-800 dark:text-white tracking-wide">Together Hub v2.0 is live!</span>
+          <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-800 dark:border-white/20 dark:bg-white/10 dark:text-white">
+                <Zap size={16} className="text-indigo-600 dark:text-yellow-400" />
+                Real workspace snapshot
+              </div>
+              <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white md:text-5xl">
+                Welcome back, {user?.name?.split(' ')[0] || 'Creator'}
+              </h1>
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-700 dark:text-slate-300">
+                Your dashboard now reflects real workspaces, rooms, teams, and collaborators instead of static demo content.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link to="/document/new" className="flex items-center gap-2 rounded-2xl bg-indigo-600 px-5 py-2.5 font-bold text-white shadow-xl transition-all hover:-translate-y-1 hover:bg-indigo-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100">
+                  <Plus size={18} />
+                  New Workspace
+                </Link>
+                <Link to="/rooms" className="flex items-center gap-2 rounded-2xl border border-slate-300 bg-white/70 px-5 py-2.5 font-bold text-slate-800 shadow-md transition-all hover:-translate-y-1 hover:bg-white dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20">
+                  <LayoutDashboard size={18} />
+                  Browse Rooms
+                </Link>
+              </div>
             </div>
-            <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 dark:text-white mb-3 tracking-tight leading-[1.02] transition-colors">
-              Welcome back, <br />
-              <span className="bg-gradient-premium bg-clip-text text-transparent">
-                {user?.name?.split(' ')[0] || 'Creator'}
-              </span>
-            </h1>
-            <p className="text-base text-slate-700 dark:text-slate-300 md:max-w-lg leading-relaxed transition-colors">
-              Your workspace is ready. You have 3 documents waiting for your review and 2 active collaboration sessions.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3 justify-center md:justify-start">
-              <Link to="/document/new" className="px-5 py-2.5 bg-indigo-600 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-bold hover:bg-indigo-700 dark:hover:bg-slate-100 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center space-x-2">
-                <Plus size={18} />
-                <span>New Project</span>
-              </Link>
-              <Link to="/rooms" className="px-5 py-2.5 bg-white/60 dark:bg-white/10 backdrop-blur-md border border-slate-300 dark:border-white/20 text-slate-800 dark:text-white rounded-2xl font-bold hover:bg-white/80 dark:hover:bg-white/20 transition-all shadow-md dark:shadow-lg hover:-translate-y-1 flex items-center space-x-2">
-                <LayoutDashboard size={18} />
-                <span>Browse Rooms</span>
-              </Link>
-            </div>
-          </div>
 
-          <div className="hidden md:flex flex-col w-[30%] z-10 h-[180px] relative perspective-1000">
-            {statCards.map((stat, i) => {
-              const Icon = stat.icon;
+            <div className="grid w-full grid-cols-2 gap-4 lg:max-w-xl">
+              {statCards.map((stat) => {
+                const Icon = stat.icon
 
-              // Calculate position in stack relative to active card
-              let offset = (i - activeCardIndex + statCards.length) % statCards.length;
-
-              const isActive = offset === 0;
-              const isVisible = offset < 3; // Show top 3 cards to make stack
-
-              // The older cards go upwards, get smaller, and fade a bit
-              const translateY = offset * -16;
-              const scale = 1 - offset * 0.06;
-              const opacity = isVisible ? 1 - (offset * 0.3) : 0;
-              const zIndex = statCards.length - offset;
-
-              return (
-                <div
-                  key={stat.id}
-                  className="absolute top-0 left-0 w-full bg-white dark:bg-[#1e2330] rounded-[1.7rem] p-5 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] cursor-pointer shadow-[0_15px_40px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.03)] border border-slate-200 dark:border-white/5 overflow-hidden group"
-                  style={{
-                    transformOrigin: 'top center',
-                    transform: `translateY(${translateY}px) scale(${scale})`,
-                    opacity: opacity,
-                    zIndex: zIndex,
-                    pointerEvents: isActive ? 'auto' : 'none',
-                  }}
-                  onClick={() => setActiveCardIndex((prev) => (prev + 1) % statCards.length)}
-                >
-                  {stat.bgGraphic}
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className={`w-[48px] h-[48px] ${stat.iconBg} rounded-[1rem] flex items-center justify-center relative z-10`}>
-                        <Icon className={stat.iconColor} size={24} strokeWidth={2.5} />
+                return (
+                  <div key={stat.label} className="rounded-[1.7rem] border border-slate-200 bg-white p-5 shadow-[0_15px_40px_-10px_rgba(0,0,0,0.1)] dark:border-white/5 dark:bg-[#1e2330] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.4)]">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-[1rem] ${stat.bg}`}>
+                        <Icon className={stat.color} size={24} strokeWidth={2.5} />
                       </div>
-                      <span className="bg-emerald-100 dark:bg-[#15392b] text-emerald-700 dark:text-[#10b981] text-[12px] font-bold px-3 py-1 rounded-full tracking-wide">
-                        {stat.trend}
-                      </span>
                     </div>
-                    <h3 className="text-[34px] font-black mb-1 tracking-tight leading-none text-slate-900 dark:text-white drop-shadow-sm">{stat.value}</h3>
-                    <p className="text-slate-600 dark:text-slate-300 font-medium text-[15px]">{stat.name}</p>
+                    <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">{loading ? '…' : stat.value}</h2>
+                    <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">{stat.label}</p>
                   </div>
-                </div>
-              );
-            })}
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-        {/* Main Content Area */}
-        <div className="md:col-span-8 space-y-8">
-
-          {/* Quick Start Tools */}
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
+      <div className="grid gap-8 md:grid-cols-12">
+        <div className="space-y-8 md:col-span-8">
+          <section>
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="flex items-center gap-3 text-2xl font-bold text-slate-800 dark:text-slate-100">
                 <Zap className="text-yellow-500" />
                 Quick Start
               </h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-              {tools.map((tool, index) => {
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              {tools.map((tool) => {
                 const Icon = tool.icon
+
                 return (
                   <Link
-                    key={index}
+                    key={tool.title}
                     to={tool.path}
-                    className={`group glass-card p-6 flex flex-col items-center text-center transition-all duration-300 hover:shadow-xl hover:-translate-y-2 border border-transparent ${tool.border}`}
+                    className="group glass-card flex flex-col items-center border border-transparent p-6 text-center transition-all duration-300 hover:-translate-y-2 hover:shadow-xl"
                   >
-                    <div className={`w-16 h-16 rounded-2xl ${tool.bg} ${tool.color} flex items-center justify-center mb-4 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3 shadow-sm`}>
+                    <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${tool.bg} ${tool.color} shadow-sm transition-transform duration-500 group-hover:rotate-3 group-hover:scale-110`}>
                       <Icon size={28} strokeWidth={2.5} />
                     </div>
-                    <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg mb-1">{tool.title}</h3>
-                    <p className="text-slate-500 text-sm font-medium">{tool.desc}</p>
-
-                    <div className="mt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <h3 className="mb-1 text-lg font-bold text-slate-800 dark:text-slate-200">{tool.title}</h3>
+                    <p className="text-sm font-medium text-slate-500">{tool.desc}</p>
+                    <div className="mt-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                       <span className={`inline-flex items-center text-sm font-bold ${tool.color}`}>
-                        Create <ArrowRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
+                        Create <ArrowRight size={16} className="ml-1 transition-transform group-hover:translate-x-1" />
                       </span>
                     </div>
                   </Link>
                 )
               })}
             </div>
-          </div>
+          </section>
 
-          {/* Recent Projects */}
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
+          <section>
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="flex items-center gap-3 text-2xl font-bold text-slate-800 dark:text-slate-100">
                 <Clock className="text-blue-500" />
-                Recent Projects
+                Recent Workspaces
               </h2>
-              <Link to="/rooms" className="text-blue-600 dark:text-blue-400 font-semibold hover:underline flex items-center text-sm">
-                View All <ArrowRight size={16} className="ml-1" />
+              <Link to="/rooms" className="flex items-center text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400">
+                View Rooms <ArrowRight size={16} className="ml-1" />
               </Link>
             </div>
 
             <div className="space-y-4">
-              {recentRooms.map((room, index) => {
-                const Icon = room.icon
-                const themeColors = {
-                  blue: 'bg-blue-500 text-white',
-                  emerald: 'bg-emerald-500 text-white',
-                  pink: 'bg-pink-500 text-white'
-                }
-                const badgeColors = {
-                  blue: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
-                  emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
-                  pink: 'bg-pink-100 text-pink-700 dark:bg-pink-500/20 dark:text-pink-300'
-                }
+              {summary.recentWorkspaces.length > 0 ? summary.recentWorkspaces.map((workspace) => {
+                const Icon = iconMap[workspace.type] || FileText
+                const colors = colorMap[workspace.type] || colorMap.document
 
                 return (
                   <Link
-                    key={room.id}
-                    to={`/${room.type}/${room.id}`}
-                    className="flex items-center p-4 glass-card hover:-translate-y-1 hover:shadow-lg transition-all duration-300 group"
+                    key={workspace.id}
+                    to={workspace.joinPath}
+                    className="group flex items-center rounded-3xl border border-slate-200 bg-white p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-white/5 dark:bg-[#1e2330]"
                   >
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mr-5 shadow-md group-hover:scale-110 transition-transform ${themeColors[room.theme]}`}>
+                    <div className={`mr-5 flex h-12 w-12 items-center justify-center rounded-2xl shadow-md transition-transform group-hover:scale-110 ${colors}`}>
                       <Icon size={20} strokeWidth={2.5} />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-bold text-slate-800 dark:text-slate-200 text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {room.title}
-                      </h4>
-                      <div className="flex items-center gap-4 mt-1">
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium flex items-center">
-                          <Clock size={12} className="mr-1" /> {room.lastEdited}
+                      <h3 className="text-lg font-bold text-slate-800 transition-colors group-hover:text-blue-600 dark:text-slate-200 dark:group-hover:text-blue-400">
+                        {workspace.title}
+                      </h3>
+                      <div className="mt-1 flex flex-wrap items-center gap-4">
+                        <span className="flex items-center text-xs font-medium text-slate-500 dark:text-slate-400">
+                          <Clock size={12} className="mr-1" />
+                          {new Date(workspace.updatedAt).toLocaleDateString()}
                         </span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${badgeColors[room.theme]}`}>
-                          {room.type}
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold capitalize text-slate-700 dark:bg-white/10 dark:text-slate-300">
+                          {workspace.type}
+                        </span>
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {workspace.collaboratorCount} collaborator{workspace.collaboratorCount === 1 ? '' : 's'}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center -space-x-2 mr-4 hidden sm:flex">
-                      {[...Array(room.collaborators)].map((_, i) => (
-                        <div key={i} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-800 bg-slate-200 flex items-center justify-center overflow-hidden">
-                          <img src={`https://ui-avatars.com/api/?name=User+${i}&background=random`} alt="user" />
-                        </div>
-                      ))}
-                    </div>
-                    <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white dark:group-hover:bg-blue-600 border border-slate-200 dark:border-slate-700 transition-colors">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 transition-colors group-hover:bg-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:group-hover:bg-blue-600">
                       <ArrowRight size={18} className="text-slate-400 group-hover:text-white" />
                     </div>
                   </Link>
                 )
-              })}
+              }) : (
+                <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center dark:border-white/10 dark:bg-white/[0.03]">
+                  <FileText size={32} className="mx-auto text-slate-400" />
+                  <h3 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">No workspaces yet</h3>
+                  <p className="mt-2 text-slate-500 dark:text-slate-400">
+                    Create your first document, code workspace, whiteboard, or meeting room to populate this dashboard.
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
-
+          </section>
         </div>
 
-        {/* Sidebar Space */}
-        <div className="md:col-span-4 space-y-8">
-          {/* Stats Card */}
-          <div className="glass-card p-6 border-t-4 border-t-purple-500">
-            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg mb-6 flex items-center">
-              <Star className="mr-2 text-purple-500" size={20} /> Team Overview
-            </h3>
-
-            <div className="space-y-6">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Weekly Goal</span>
-                  <span className="text-sm font-bold text-purple-600 dark:text-purple-400">78%</span>
-                </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5">
-                  <div className="bg-gradient-to-r from-purple-500 to-indigo-500 h-2.5 rounded-full" style={{ width: '78%' }}></div>
-                </div>
+        <div className="space-y-8 md:col-span-4">
+          <section className="glass-card border-t-4 border-t-purple-500 p-6">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">Workspace Snapshot</h2>
+            <div className="mt-6 space-y-4">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+                <span className="block text-sm font-medium text-slate-500 dark:text-slate-400">Accessible rooms</span>
+                <span className="mt-1 block text-2xl font-extrabold text-slate-800 dark:text-slate-100">{loading ? '…' : summary.stats.roomCount}</span>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500 dark:text-slate-400 font-medium text-sm block mb-1">Active Users</span>
-                  <span className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">24</span>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500 dark:text-slate-400 font-medium text-sm block mb-1">Total Docs</span>
-                  <span className="text-2xl font-extrabold text-slate-800 dark:text-slate-100">156</span>
-                </div>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+                <span className="block text-sm font-medium text-slate-500 dark:text-slate-400">Active teams</span>
+                <span className="mt-1 block text-2xl font-extrabold text-slate-800 dark:text-slate-100">{loading ? '…' : summary.stats.teamCount}</span>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Activity / Suggestions */}
-          <div className="glass-card p-6">
-            <h3 className="font-bold text-slate-800 dark:text-slate-200 text-lg mb-4 flex items-center">
-              <MessageSquare className="mr-2 text-pink-500" size={20} /> System Status
-            </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-              All systems are fully operational. Test out the custom notification system using the buttons below.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => success('Changes saved successfully!')} className="p-3 text-sm font-bold bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 rounded-xl hover:bg-green-100 dark:hover:bg-green-500/20 transition-colors border border-green-200 dark:border-green-800">
-                Success
-              </button>
-              <button onClick={() => error('Failed to connect to server')} className="p-3 text-sm font-bold bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors border border-red-200 dark:border-red-800">
-                Error
-              </button>
-              <button onClick={() => warning('Low disk space warning')} className="p-3 text-sm font-bold bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 rounded-xl hover:bg-yellow-100 dark:hover:bg-yellow-500/20 transition-colors border border-yellow-200 dark:border-yellow-800">
-                Warning
-              </button>
-              <button onClick={() => info('New update available')} className="p-3 text-sm font-bold bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors border border-blue-200 dark:border-blue-800">
-                Info
-              </button>
+          <section className="glass-card p-6">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">Recent Rooms</h2>
+            <div className="mt-4 space-y-3">
+              {summary.recentRooms.length > 0 ? summary.recentRooms.map((room) => (
+                <Link
+                  key={room.id}
+                  to={room.joinPath || '/rooms'}
+                  className="block rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-blue-300 hover:bg-white dark:border-white/5 dark:bg-white/[0.03] dark:hover:bg-white/[0.05]"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-slate-900 dark:text-white">{room.name}</p>
+                      <p className="mt-1 text-sm capitalize text-slate-500 dark:text-slate-400">
+                        {room.type} · {room.memberCount} member{room.memberCount === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                    <ArrowRight size={16} className="text-slate-400" />
+                  </div>
+                </Link>
+              )) : (
+                <p className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-400">
+                  No recent rooms yet. Rooms you create or join will appear here.
+                </p>
+              )}
             </div>
-          </div>
-
+          </section>
         </div>
       </div>
-
-      {/* Chatbot FAB */}
-      <button className="fab group" title="Chatbot Assistant">
-        <Bot size={24} className="group-hover:rotate-12 transition-transform duration-300 pointer-events-none" />
-      </button>
-
     </div>
   )
 }
