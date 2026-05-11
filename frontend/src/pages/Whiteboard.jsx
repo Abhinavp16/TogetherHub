@@ -6,6 +6,7 @@ import * as Y from 'yjs'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { documentAPI, getCollaborationUrl, publicWhiteboardAPI } from '../services/api'
+import { copyTextToClipboard } from '../utils/clipboard'
 import {
   clampPoint,
   createStrokeId,
@@ -559,10 +560,16 @@ const Whiteboard = () => {
 
   const handleShare = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href)
-      toast.success('Whiteboard link copied to clipboard')
+      const copied = await copyTextToClipboard(window.location.href)
+
+      if (copied) {
+        toast.success('Whiteboard link copied to clipboard')
+        return
+      }
+
+      toast.error('Unable to copy automatically. Select the address bar URL to share it.')
     } catch (error) {
-      toast.error('Failed to copy whiteboard link')
+      toast.error('Unable to copy automatically. Select the address bar URL to share it.')
     }
   }
 

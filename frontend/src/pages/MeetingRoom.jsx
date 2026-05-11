@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { roomAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import { copyTextToClipboard } from '../utils/clipboard'
 
 const rtcConfiguration = {
   iceServers: [
@@ -208,6 +209,13 @@ const MeetingRoom = () => {
       return localStreamRef.current
     }
 
+    if (!navigator.mediaDevices?.getUserMedia) {
+      const message = 'Camera and microphone require HTTPS in this browser. Invite links and chat will still work.'
+      setMediaError(message)
+      toast.error('Camera and microphone require HTTPS')
+      return null
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       localStreamRef.current = stream
@@ -294,10 +302,16 @@ const MeetingRoom = () => {
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href)
-      toast.success('Meeting link copied')
+      const copied = await copyTextToClipboard(window.location.href)
+
+      if (copied) {
+        toast.success('Meeting link copied')
+        return
+      }
+
+      toast.error('Unable to copy automatically. Select the address bar URL to share it.')
     } catch (error) {
-      toast.error('Unable to copy meeting link')
+      toast.error('Unable to copy automatically. Select the address bar URL to share it.')
     }
   }
 
@@ -330,6 +344,11 @@ const MeetingRoom = () => {
 
   const toggleScreenShare = async () => {
     if (!room?.meetingSettings?.allowScreenShare) {
+      return
+    }
+
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      toast.error('Screen sharing requires HTTPS')
       return
     }
 

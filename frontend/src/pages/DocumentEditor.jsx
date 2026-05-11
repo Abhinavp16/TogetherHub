@@ -25,6 +25,7 @@ import {
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { documentAPI, getCollaborationUrl, publicDocumentAPI } from '../services/api'
+import { copyTextToClipboard } from '../utils/clipboard'
 
 const collaboratorColors = [
   '#2563eb',
@@ -452,10 +453,16 @@ const DocumentEditor = () => {
 
   const handleShare = async () => {
     try {
-      await navigator.clipboard.writeText(window.location.href)
-      toast.success('Document link copied to clipboard')
+      const copied = await copyTextToClipboard(window.location.href)
+
+      if (copied) {
+        toast.success('Document link copied to clipboard')
+        return
+      }
+
+      toast.error('Unable to copy automatically. Select the address bar URL to share it.')
     } catch (error) {
-      toast.error('Failed to copy document link')
+      toast.error('Unable to copy automatically. Select the address bar URL to share it.')
     }
   }
 
