@@ -1,7 +1,11 @@
 const mongoose = require('mongoose');
 const User = require('./models/User');
 
-mongoose.connect('mongodb://localhost:27017/togetherhub')
+require('dotenv').config();
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/togetherhub';
+
+mongoose.connect(MONGODB_URI)
     .then(async () => {
         try {
             const email = 'abhinav16';

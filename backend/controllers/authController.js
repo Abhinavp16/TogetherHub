@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const { serializeUser, signAuthToken } = require('../utils/authHelpers');
 
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 
 const buildClientCallbackUrl = (params) => {
     const searchParams = new URLSearchParams(params);

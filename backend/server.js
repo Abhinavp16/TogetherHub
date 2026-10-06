@@ -9,10 +9,10 @@ require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
-const allowedOrigins = [
-    process.env.CLIENT_URL || "http://localhost:5173",
+const allowedOrigins = Array.from(new Set([
+    process.env.CLIENT_URL || "http://localhost:3000",
     "http://localhost:3000"
-];
+]));
 
 const io = new Server(server, {
     cors: {
