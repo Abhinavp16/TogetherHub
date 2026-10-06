@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -9,13 +10,21 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Home from './pages/Home'
-import DocumentEditor from './pages/DocumentEditor'
-import CodeEditor from './pages/CodeEditor'
-import Whiteboard from './pages/Whiteboard'
-import MeetingRoom from './pages/MeetingRoom'
 import RoomList from './pages/RoomList'
 import Team from './pages/Team'
 import AuthCallback from './pages/AuthCallback'
+
+// Workspace pages pull in heavy editors (Monaco, TipTap, WebRTC), so load them on demand.
+const DocumentEditor = lazy(() => import('./pages/DocumentEditor'))
+const CodeEditor = lazy(() => import('./pages/CodeEditor'))
+const Whiteboard = lazy(() => import('./pages/Whiteboard'))
+const MeetingRoom = lazy(() => import('./pages/MeetingRoom'))
+
+const WorkspaceFallback = () => (
+  <div className="flex h-full items-center justify-center bg-slate-950">
+    <div className="h-10 w-10 animate-spin rounded-full border-4 border-cyan-400 border-t-transparent" />
+  </div>
+)
 
 function App() {
   return (
@@ -40,33 +49,35 @@ function App() {
                   },
                 }}
               />
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }>
-                  <Route index element={<Home />} />
-                  <Route path="rooms" element={<RoomList />} />
-                  <Route path="team" element={<Team />} />
-                </Route>
-                <Route element={
-                  <ProtectedRoute>
-                    <WorkspaceLayout />
-                  </ProtectedRoute>
-                }>
-                  <Route path="/video/:roomId" element={<MeetingRoom />} />
-                </Route>
-                <Route element={<WorkspaceLayout />}>
-                  <Route path="/code/:roomId" element={<CodeEditor />} />
-                  <Route path="/document/:roomId" element={<DocumentEditor />} />
-                  <Route path="/whiteboard/:roomId" element={<Whiteboard />} />
-                </Route>
-                <Route path="*" element={<Navigate to="/login" replace />} />
-              </Routes>
+              <Suspense fallback={<WorkspaceFallback />}>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/" element={
+                    <ProtectedRoute>
+                      <Layout />
+                    </ProtectedRoute>
+                  }>
+                    <Route index element={<Home />} />
+                    <Route path="rooms" element={<RoomList />} />
+                    <Route path="team" element={<Team />} />
+                  </Route>
+                  <Route element={
+                    <ProtectedRoute>
+                      <WorkspaceLayout />
+                    </ProtectedRoute>
+                  }>
+                    <Route path="/video/:roomId" element={<MeetingRoom />} />
+                  </Route>
+                  <Route element={<WorkspaceLayout />}>
+                    <Route path="/code/:roomId" element={<CodeEditor />} />
+                    <Route path="/document/:roomId" element={<DocumentEditor />} />
+                    <Route path="/whiteboard/:roomId" element={<Whiteboard />} />
+                  </Route>
+                  <Route path="*" element={<Navigate to="/login" replace />} />
+                </Routes>
+              </Suspense>
             </div>
           </Router>
         </NotificationProvider>

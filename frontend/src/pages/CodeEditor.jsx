@@ -35,6 +35,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
 import { documentAPI, getCollaborationUrl, publicCodeAPI } from '../services/api'
 import { copyTextToClipboard } from '../utils/clipboard'
+import '../utils/monacoSetup'
 import {
   bootstrapCodeWorkspace,
   createWorkspaceNodeId,
