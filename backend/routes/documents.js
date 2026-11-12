@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const documentController = require('../controllers/documentController');
 const auth = require('../middleware/auth');
+const validateObjectId = require('../middleware/validateObjectId');
 
+router.param('id', validateObjectId);
 router.use(auth); // All document routes require authentication
 
 router.post('/', documentController.createDocument);

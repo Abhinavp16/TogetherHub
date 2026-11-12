@@ -1,7 +1,9 @@
 const User = require('../models/User');
+const { serializeUser } = require('../utils/authHelpers');
+const { normalizeEmail } = require('../utils/permissions');
 
 exports.getProfile = async (req, res) => {
-    res.json(req.user);
+    res.json(serializeUser(req.user));
 };
 
 exports.updateProfile = async (req, res) => {
@@ -14,18 +16,30 @@ exports.updateProfile = async (req, res) => {
     }
 
     try {
-        updates.forEach((update) => req.user[update] = req.body[update]);
+        updates.forEach((update) => {
+            req.user[update] = req.body[update];
+        });
         await req.user.save();
-        res.json(req.user);
+        res.json(serializeUser(req.user));
     } catch (e) {
-        res.status(400).send(e);
+        res.status(400).json({ message: e.message });
     }
 };
 
-exports.getUsers = async (req, res) => {
+// Exact-match lookup used when inviting someone; never lists the user directory.
+exports.lookupUser = async (req, res) => {
     try {
-        const users = await User.find({}, 'name email avatar');
-        res.json(users);
+        const email = normalizeEmail(req.query.email);
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+
+        const user = await User.findOne({ email }, 'name avatar');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({ id: user._id, name: user.name, avatar: user.avatar });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

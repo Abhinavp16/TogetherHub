@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -24,81 +24,23 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
+import { useOneTimeCreation } from '../hooks/useOneTimeCreation'
 import { documentAPI, getCollaborationUrl, publicDocumentAPI } from '../services/api'
 import { copyTextToClipboard } from '../utils/clipboard'
-
-const collaboratorColors = [
-  '#2563eb',
-  '#7c3aed',
-  '#db2777',
-  '#ea580c',
-  '#059669',
-  '#0891b2'
-]
-
-const buildGuestProfile = () => {
-  const storedName = localStorage.getItem('guestDisplayName')
-  const storedColor = localStorage.getItem('guestDisplayColor')
-
-  if (storedName && storedColor) {
-    return {
-      id: `guest-${storedName.toLowerCase().replace(/\s+/g, '-')}`,
-      name: storedName,
-      color: storedColor,
-      isGuest: true
-    }
-  }
-
-  const generatedName = `Guest ${Math.floor(1000 + Math.random() * 9000)}`
-  const generatedColor = collaboratorColors[Math.floor(Math.random() * collaboratorColors.length)]
-
-  localStorage.setItem('guestDisplayName', generatedName)
-  localStorage.setItem('guestDisplayColor', generatedColor)
-
-  return {
-    id: `guest-${generatedName.toLowerCase().replace(/\s+/g, '-')}`,
-    name: generatedName,
-    color: generatedColor,
-    isGuest: true
-  }
-}
-
-const createPresenceProfile = (user, displayName) => {
-  if (user) {
-    const fallbackColor = collaboratorColors[String(user.id || user._id || user.email || user.name).length % collaboratorColors.length]
-
-    return {
-      id: user.id || user._id || user.email,
-      name: displayName || user.name,
-      color: fallbackColor,
-      avatar: user.avatar || '',
-      typing: false,
-      isGuest: false
-    }
-  }
-
-  const guestProfile = buildGuestProfile()
-
-  return {
-    ...guestProfile,
-    name: displayName || guestProfile.name,
-    typing: false
-  }
-}
-
-const extractPresence = (awareness) => {
-  if (!awareness) {
-    return []
-  }
-
-  return Array.from(awareness.getStates().values())
-    .map((state) => state.user)
-    .filter(Boolean)
-}
+import LinkAccessControl from '../components/UI/LinkAccessControl'
+import {
+  buildGuestProfile,
+  createPresenceProfile,
+  extractPresence,
+  getCollaborationToken,
+  groupPresenceByUser
+} from '../utils/presence'
 
 const ToolbarButton = ({ active = false, onClick, title, children, disabled = false }) => (
   <button
     type="button"
+    // Keep focus (and the selection) in the document so typing continues right after a click.
+    onMouseDown={(event) => event.preventDefault()}
     onClick={onClick}
     disabled={disabled}
     title={title}
@@ -176,46 +118,35 @@ const DocumentEditor = () => {
   const presenceProfile = useMemo(() => createPresenceProfile(user, displayName), [displayName, user])
 
   useEffect(() => {
-    if (roomId !== 'new') {
-      return undefined
-    }
-
-    if (authLoading) {
-      return undefined
-    }
-
-    if (!user) {
+    if (roomId === 'new' && !authLoading && !user) {
       toast.error('Please log in to create a new document')
       navigate('/login', { replace: true })
-      return undefined
-    }
-
-    let cancelled = false
-
-    const createDocument = async () => {
-      try {
-        const response = await documentAPI.createDocument({
-          title: 'Untitled Document',
-          content: '',
-          type: 'text',
-          shareAccess: 'link'
-        })
-
-        if (!cancelled) {
-          navigate(`/document/${response.data._id}`, { replace: true })
-        }
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to create document')
-        navigate('/', { replace: true })
-      }
-    }
-
-    createDocument()
-
-    return () => {
-      cancelled = true
     }
   }, [authLoading, navigate, roomId, user])
+
+  useOneTimeCreation(
+    roomId === 'new' && !authLoading && Boolean(user),
+    useCallback(
+      async (isMounted) => {
+        try {
+          const response = await documentAPI.createDocument({
+          title: 'Untitled Document',
+          content: '',
+          type: 'text'
+        })
+          if (isMounted()) {
+            navigate(`/document/${response.data._id}`, { replace: true })
+          }
+        } catch (error) {
+          toast.error(error.response?.data?.message || 'Failed to create document')
+          if (isMounted()) {
+            navigate('/', { replace: true })
+          }
+        }
+      },
+      [navigate]
+    )
+  )
 
   useEffect(() => {
     if (!roomId || roomId === 'new') {
@@ -255,8 +186,11 @@ const DocumentEditor = () => {
 
   const [collaborationKey, setCollaborationKey] = useState(0)
 
+  const documentId = documentMeta?._id
+  const canEditWorkspace = documentMeta?.role === 'owner' || documentMeta?.role === 'editor'
+
   useEffect(() => {
-    if (!roomId || roomId === 'new' || !documentMeta) {
+    if (!roomId || roomId === 'new' || !documentId) {
       return undefined
     }
 
@@ -267,7 +201,8 @@ const DocumentEditor = () => {
       url: getCollaborationUrl(),
       name: roomId,
       document: ydoc,
-      token: null,
+      token: getCollaborationToken(),
+      onAuthenticationFailed: () => setConnectionStatus('denied'),
       onOpen: () => setConnectionStatus('connecting'),
       onConnect: () => setConnectionStatus('connected'),
       onDisconnect: () => setConnectionStatus('disconnected'),
@@ -300,7 +235,7 @@ const DocumentEditor = () => {
       setPresenceUsers([])
       setProviderReady(false)
     }
-  }, [documentMeta, roomId])
+  }, [documentId, roomId])
 
   const collaborationSession = collaborationRef.current
 
@@ -376,6 +311,12 @@ const DocumentEditor = () => {
     [collaborationKey, presenceProfile.id, presenceProfile.name, presenceProfile.color]
   )
 
+  useEffect(() => {
+    if (editor && collaborationSession) {
+      editor.setEditable(canEditWorkspace)
+    }
+  }, [canEditWorkspace, collaborationSession, editor])
+
   const toolbarState = useEditorState({
     editor,
     selector: ({ editor: currentEditor }) => {
@@ -427,7 +368,7 @@ const DocumentEditor = () => {
       return undefined
     }
 
-    if (title === documentMeta.title) {
+    if (title === documentMeta.title || !canEditWorkspace) {
       return undefined
     }
 
@@ -468,7 +409,7 @@ const DocumentEditor = () => {
 
   const blockFormattingHint = 'Headings, lists, and quotes apply to full lines. Select the full line or place the cursor in it first.'
 
-  const activeCollaborators = presenceUsers.length ? presenceUsers : [presenceProfile]
+  const activeCollaborators = groupPresenceByUser(presenceUsers.length ? presenceUsers : [presenceProfile])
   const typingUsers = activeCollaborators.filter((collaborator) => collaborator.typing && collaborator.id !== presenceProfile.id)
 
   if (roomId === 'new' || loading || authLoading) {
@@ -506,14 +447,18 @@ const DocumentEditor = () => {
               </p>
               <input
                 value={title}
+                readOnly={!canEditWorkspace}
                 onChange={(event) => setTitle(event.target.value)}
                 className="mt-2 w-full bg-transparent text-2xl font-bold tracking-tight text-white outline-none placeholder:text-slate-500"
                 placeholder="Untitled Document"
               />
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-400">
                 <span className={`rounded-full border px-3 py-1 ${connectionStatus === 'connected' ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-400/30 bg-amber-500/10 text-amber-200'}`}>
-                  {connectionStatus === 'connected' ? 'Live sync connected' : 'Connecting collaboration'}
+                  {connectionStatus === 'connected' ? 'Live sync connected' : connectionStatus === 'denied' ? 'Access denied' : 'Connecting collaboration'}
                 </span>
+                {!canEditWorkspace && (
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">View only</span>
+                )}
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1">
                   {titleSaveState === 'saving' ? 'Saving title...' : titleSaveState === 'error' ? 'Title save failed' : `Saved ${lastSavedLabel || 'recently'}`}
                 </span>
@@ -534,6 +479,15 @@ const DocumentEditor = () => {
                 />
               </label>
 
+              <LinkAccessControl
+                role={documentMeta.role}
+                linkAccess={documentMeta.linkAccess}
+                onChange={async (linkAccess) => {
+                  const response = await publicDocumentAPI.updateDocument(roomId, { linkAccess })
+                  setDocumentMeta((current) => ({ ...current, ...response.data }))
+                }}
+              />
+
               <button
                 type="button"
                 onClick={handleShare}
@@ -553,14 +507,14 @@ const DocumentEditor = () => {
                 <ToolbarButton
                   title="Undo"
                   onClick={() => editor?.chain().focus().undo().run()}
-                  disabled={!editor}
+                  disabled={!editor || !canEditWorkspace}
                 >
                   <Undo2 size={16} />
                 </ToolbarButton>
                 <ToolbarButton
                   title="Redo"
                   onClick={() => editor?.chain().focus().redo().run()}
-                  disabled={!editor}
+                  disabled={!editor || !canEditWorkspace}
                 >
                   <Redo2 size={16} />
                 </ToolbarButton>
@@ -568,7 +522,7 @@ const DocumentEditor = () => {
                   title="Bold"
                   active={toolbarState.bold}
                   onClick={() => editor?.chain().focus().toggleBold().run()}
-                  disabled={!editor}
+                  disabled={!editor || !canEditWorkspace}
                 >
                   <Bold size={16} />
                 </ToolbarButton>
@@ -576,7 +530,7 @@ const DocumentEditor = () => {
                   title="Italic"
                   active={toolbarState.italic}
                   onClick={() => editor?.chain().focus().toggleItalic().run()}
-                  disabled={!editor}
+                  disabled={!editor || !canEditWorkspace}
                 >
                   <Italic size={16} />
                 </ToolbarButton>
@@ -584,7 +538,7 @@ const DocumentEditor = () => {
                   title="Strike"
                   active={toolbarState.strike}
                   onClick={() => editor?.chain().focus().toggleStrike().run()}
-                  disabled={!editor}
+                  disabled={!editor || !canEditWorkspace}
                 >
                   <Strikethrough size={16} />
                 </ToolbarButton>
@@ -592,7 +546,7 @@ const DocumentEditor = () => {
                   title={toolbarState.blockFormattingDisabled ? blockFormattingHint : 'Heading 1'}
                   active={toolbarState.heading1}
                   onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-                  disabled={!editor || toolbarState.blockFormattingDisabled}
+                  disabled={!editor || !canEditWorkspace || toolbarState.blockFormattingDisabled}
                 >
                   <Heading1 size={16} />
                 </ToolbarButton>
@@ -600,7 +554,7 @@ const DocumentEditor = () => {
                   title={toolbarState.blockFormattingDisabled ? blockFormattingHint : 'Heading 2'}
                   active={toolbarState.heading2}
                   onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-                  disabled={!editor || toolbarState.blockFormattingDisabled}
+                  disabled={!editor || !canEditWorkspace || toolbarState.blockFormattingDisabled}
                 >
                   <Heading2 size={16} />
                 </ToolbarButton>
@@ -608,7 +562,7 @@ const DocumentEditor = () => {
                   title={toolbarState.blockFormattingDisabled ? blockFormattingHint : 'Bullet list'}
                   active={toolbarState.bulletList}
                   onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                  disabled={!editor || toolbarState.blockFormattingDisabled}
+                  disabled={!editor || !canEditWorkspace || toolbarState.blockFormattingDisabled}
                 >
                   <List size={16} />
                 </ToolbarButton>
@@ -616,7 +570,7 @@ const DocumentEditor = () => {
                   title={toolbarState.blockFormattingDisabled ? blockFormattingHint : 'Ordered list'}
                   active={toolbarState.orderedList}
                   onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                  disabled={!editor || toolbarState.blockFormattingDisabled}
+                  disabled={!editor || !canEditWorkspace || toolbarState.blockFormattingDisabled}
                 >
                   <ListOrdered size={16} />
                 </ToolbarButton>
@@ -624,7 +578,7 @@ const DocumentEditor = () => {
                   title={toolbarState.blockFormattingDisabled ? blockFormattingHint : 'Quote'}
                   active={toolbarState.blockquote}
                   onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                  disabled={!editor || toolbarState.blockFormattingDisabled}
+                  disabled={!editor || !canEditWorkspace || toolbarState.blockFormattingDisabled}
                 >
                   <Quote size={16} />
                 </ToolbarButton>

@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
+const validateObjectId = require('../middleware/validateObjectId');
 const teamController = require('../controllers/teamController');
 
+router.param('id', validateObjectId);
+router.param('userId', validateObjectId);
 router.use(auth);
 
 router.get('/', teamController.getTeams);

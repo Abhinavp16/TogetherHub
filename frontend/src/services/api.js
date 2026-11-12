@@ -29,8 +29,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     // Prevent redirecting on failed login attempts
-    if (error.response?.status === 401 && !error.config.url.includes('/auth/login')) {
+    // The startup session check (/auth/me) is handled by AuthContext, so shared links keep working for
+    // visitors with an expired token; protected pages redirect via ProtectedRoute.
+    const url = error.config?.url || ''
+    if (error.response?.status === 401 && !url.includes('/auth/login') && !url.includes('/auth/me')) {
       localStorage.removeItem('authToken')
+      localStorage.removeItem('user')
       window.location.href = '/login'
     }
     return Promise.reject(error)
@@ -84,7 +88,7 @@ export const authAPI = {
 export const userAPI = {
   getProfile: () => api.get('/users/profile'),
   updateProfile: (data) => api.put('/users/profile', data),
-  getUsers: () => api.get('/users')
+  lookupUser: (email) => api.get('/users/lookup', { params: { email } })
 }
 
 export const teamAPI = {
@@ -94,6 +98,10 @@ export const teamAPI = {
   addMember: (id, data) => api.post(`/teams/${id}/members`, data),
   updateMember: (id, userId, data) => api.patch(`/teams/${id}/members/${userId}`, data),
   removeMember: (id, userId) => api.delete(`/teams/${id}/members/${userId}`)
+}
+
+export const searchAPI = {
+  search: (q) => api.get('/search', { params: { q } })
 }
 
 export const dashboardAPI = {

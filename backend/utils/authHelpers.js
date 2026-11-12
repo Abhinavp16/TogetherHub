@@ -1,10 +1,26 @@
 const jwt = require('jsonwebtoken');
-
-const getJwtSecret = () => process.env.JWT_SECRET || 'your_jwt_secret_key';
+const config = require('../config');
+const User = require('../models/User');
 
 const signAuthToken = (user) => {
-    return jwt.sign({ _id: user._id.toString() }, getJwtSecret());
+    return jwt.sign({ _id: user._id.toString() }, config.JWT_SECRET, { expiresIn: config.JWT_EXPIRES_IN });
 };
+
+// Resolves a bearer token to its user, or null when the token is missing, invalid, expired or orphaned.
+const getUserFromToken = async (token) => {
+    if (!token) {
+        return null;
+    }
+
+    try {
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        return await User.findById(decoded._id);
+    } catch {
+        return null;
+    }
+};
+
+const getBearerToken = (req) => req.header('Authorization')?.replace(/^Bearer\s+/i, '') || null;
 
 const serializeUser = (user) => ({
     id: user._id,
@@ -15,6 +31,8 @@ const serializeUser = (user) => ({
 });
 
 module.exports = {
+    getBearerToken,
+    getUserFromToken,
     serializeUser,
     signAuthToken
 };

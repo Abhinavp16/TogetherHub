@@ -1,0 +1,42 @@
+# Runs the full stack locally: MongoDB, the API + collaboration server, and the built web app.
+# Usage: cp .env.example .env  (set JWT_SECRET), then: docker compose up --build
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/togetherhub
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (see .env.example)}
+      CLIENT_URL: http://localhost:${WEB_PORT:-3000}
+      PORT: 5000
+      COLLAB_PORT: 1234
+    ports:
+      - "${API_PORT:-5000}:5000"
+      - "${COLLAB_PORT:-1234}:1234"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_SERVER_URL: http://localhost:${API_PORT:-5000}
+        VITE_API_URL: http://localhost:${API_PORT:-5000}/api
+        VITE_COLLAB_URL: ws://localhost:${COLLAB_PORT:-1234}
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:

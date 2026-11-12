@@ -2,6 +2,8 @@ const Team = require('../models/Team');
 const User = require('../models/User');
 
 const TEAM_MANAGE_ROLES = new Set(['owner', 'admin']);
+// Roles that can be granted. Ownership is never transferable through these endpoints.
+const ASSIGNABLE_ROLES = ['admin', 'editor', 'viewer'];
 
 const normalizeId = (value) => {
     if (!value) {
@@ -147,6 +149,14 @@ exports.addTeamMember = async (req, res) => {
             return res.status(400).json({ message: 'Email is required' });
         }
 
+        if (!ASSIGNABLE_ROLES.includes(role)) {
+            return res.status(400).json({ message: 'Invalid role' });
+        }
+
+        if (role === 'admin' && result.membership.role !== 'owner') {
+            return res.status(403).json({ message: 'Only the team owner can add admins' });
+        }
+
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -188,7 +198,21 @@ exports.updateTeamMember = async (req, res) => {
             return res.status(400).json({ message: 'Owner role cannot be changed' });
         }
 
-        targetMember.role = req.body.role || targetMember.role;
+        const role = req.body.role;
+        if (!ASSIGNABLE_ROLES.includes(role)) {
+            return res.status(400).json({ message: 'Invalid role' });
+        }
+
+        if (normalizeId(targetMember.userId) === normalizeId(req.user._id)) {
+            return res.status(400).json({ message: 'You cannot change your own role' });
+        }
+
+        const actorIsOwner = result.membership.role === 'owner';
+        if (!actorIsOwner && (targetMember.role === 'admin' || role === 'admin')) {
+            return res.status(403).json({ message: 'Only the team owner can grant or revoke admin' });
+        }
+
+        targetMember.role = role;
         await result.team.save();
         await result.team.populate('owner', 'name email avatar');
         await result.team.populate('members.userId', 'name email avatar');
@@ -213,6 +237,10 @@ exports.removeTeamMember = async (req, res) => {
 
         if (targetMember.role === 'owner') {
             return res.status(400).json({ message: 'Owner cannot be removed from the team' });
+        }
+
+        if (targetMember.role === 'admin' && result.membership.role !== 'owner') {
+            return res.status(403).json({ message: 'Only the team owner can remove admins' });
         }
 
         result.team.members = result.team.members.filter(

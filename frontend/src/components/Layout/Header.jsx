@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Users, Settings, Bell, Sparkles, Search, LogOut } from 'lucide-react'
+import { Settings, Search, LogOut } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import UserPresence from '../Collaboration/UserPresence'
 import ThemeToggle from '../UI/ThemeToggle'
 import SettingsPanel from '../UI/SettingsPanel'
 import SearchModal from '../UI/SearchModal'
@@ -55,8 +54,6 @@ const Header = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            <UserPresence />
-            
             {/* Search Button */}
             <button 
               onClick={() => setIsSearchOpen(true)}
@@ -65,12 +62,6 @@ const Header = () => {
             >
               <Search size={20} />
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
-            </button>
-            
-            <button className="p-3 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800/50 transition-all duration-300 relative group hover:scale-105 hover:shadow-lg">
-              <Bell size={20} />
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-pulse shadow-lg"></div>
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
             </button>
             
             <ThemeToggle />

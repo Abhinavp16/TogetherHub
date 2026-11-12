@@ -1,31 +1,10 @@
 const Room = require('../models/Room');
 const Team = require('../models/Team');
-const {
-    ensureWorkspaceForRoom,
-    normalizeId,
-    serializeRoomResponse
-} = require('../utils/roomWorkspace');
-
-const normalizeEmail = (email) => email?.trim().toLowerCase() || '';
+const { ensureWorkspaceForRoom, serializeRoomResponse } = require('../utils/roomWorkspace');
+const { canAccessRoom, isRoomInvited, isRoomMember, isRoomOwner, normalizeEmail } = require('../utils/permissions');
 
 const dedupeEmails = (emails) => {
     return Array.from(new Set((emails || []).map(normalizeEmail).filter(Boolean)));
-};
-
-const isRoomMember = (room, userId) => {
-    return room.members.some((memberId) => normalizeId(memberId) === normalizeId(userId));
-};
-
-const isRoomOwner = (room, userId) => normalizeId(room.owner) === normalizeId(userId);
-
-const isRoomInvited = (room, email) => room.invites.includes(normalizeEmail(email));
-
-const canAccessRoom = (room, user) => {
-    if (room.visibility === 'public') {
-        return true;
-    }
-
-    return isRoomOwner(room, user._id) || isRoomMember(room, user._id) || isRoomInvited(room, user.email);
 };
 
 const canManageRoomInvites = (room, user) => {
@@ -171,7 +150,15 @@ exports.leaveRoom = async (req, res) => {
             return res.status(404).json({ message: 'Room not found' });
         }
 
-        room.members = room.members.filter(memberId => memberId.toString() !== req.user._id.toString());
+        if (isRoomOwner(room, req.user._id)) {
+            return res.status(400).json({ message: 'The owner cannot leave their own room' });
+        }
+
+        if (!isRoomMember(room, req.user._id)) {
+            return res.status(400).json({ message: 'You are not a member of this room' });
+        }
+
+        room.members = room.members.filter((memberId) => memberId.toString() !== req.user._id.toString());
         await room.save();
         await ensureWorkspaceForRoom(room);
 

@@ -1,11 +1,53 @@
+const crypto = require('crypto');
 const User = require('../models/User');
 const { serializeUser, signAuthToken } = require('../utils/authHelpers');
 
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+const config = require('../config');
+
+const CLIENT_URL = config.CLIENT_URL;
 
 const buildClientCallbackUrl = (params) => {
     const searchParams = new URLSearchParams(params);
     return `${CLIENT_URL.replace(/\/$/, '')}/auth/callback?${searchParams.toString()}`;
+};
+
+const OAUTH_STATE_COOKIE = 'oauth_state';
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 8;
+
+// A random value stored in a short-lived httpOnly cookie and echoed back by the provider.
+// The callback is rejected unless both match, which prevents login CSRF.
+const issueOAuthState = (res) => {
+    const state = crypto.randomBytes(24).toString('hex');
+    res.cookie(OAUTH_STATE_COOKIE, state, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: config.NODE_ENV === 'production',
+        maxAge: 10 * 60 * 1000,
+        path: '/api/auth'
+    });
+    return state;
+};
+
+const readCookie = (req, name) => {
+    const header = req.headers.cookie || '';
+    for (const part of header.split(';')) {
+        const [key, ...rest] = part.trim().split('=');
+        if (key === name) {
+            return decodeURIComponent(rest.join('='));
+        }
+    }
+    return null;
+};
+
+const consumeOAuthState = (req, res) => {
+    const expected = readCookie(req, OAUTH_STATE_COOKIE);
+    res.clearCookie(OAUTH_STATE_COOKIE, { path: '/api/auth' });
+    const received = typeof req.query.state === 'string' ? req.query.state : '';
+    if (!expected || expected.length !== received.length) {
+        return false;
+    }
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received));
 };
 
 const redirectWithError = (res, message) => {
@@ -76,8 +118,19 @@ const completeOAuthLogin = (res, user) => {
 
 exports.signup = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
-        const normalizedEmail = email?.trim().toLowerCase();
+        const { email, password } = req.body;
+        const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+        const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+        if (!name) {
+            return res.status(400).json({ message: 'Name is required' });
+        }
+        if (!EMAIL_PATTERN.test(normalizedEmail)) {
+            return res.status(400).json({ message: 'Enter a valid email address' });
+        }
+        if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+            return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+        }
 
         // Check if user already exists
         const existingUser = await User.findOne({ email: normalizedEmail });
@@ -134,7 +187,8 @@ exports.startGoogleAuth = async (req, res) => {
             response_type: 'code',
             scope: 'openid email profile',
             access_type: 'offline',
-            prompt: 'consent'
+            prompt: 'consent',
+            state: issueOAuthState(res)
         });
 
         return res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
@@ -145,8 +199,14 @@ exports.startGoogleAuth = async (req, res) => {
 
 exports.handleGoogleCallback = async (req, res) => {
     try {
+        const stateIsValid = consumeOAuthState(req, res);
+
         if (req.query.error) {
             return redirectWithError(res, req.query.error);
+        }
+
+        if (!stateIsValid) {
+            return redirectWithError(res, 'Sign-in could not be verified. Please try again.');
         }
 
         const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL } = getRequiredEnv(
@@ -208,7 +268,8 @@ exports.startGithubAuth = async (req, res) => {
         const params = new URLSearchParams({
             client_id: GITHUB_CLIENT_ID,
             redirect_uri: GITHUB_CALLBACK_URL,
-            scope: 'read:user user:email'
+            scope: 'read:user user:email',
+            state: issueOAuthState(res)
         });
 
         return res.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`);
@@ -219,8 +280,14 @@ exports.startGithubAuth = async (req, res) => {
 
 exports.handleGithubCallback = async (req, res) => {
     try {
+        const stateIsValid = consumeOAuthState(req, res);
+
         if (req.query.error) {
             return redirectWithError(res, req.query.error);
+        }
+
+        if (!stateIsValid) {
+            return redirectWithError(res, 'Sign-in could not be verified. Please try again.');
         }
 
         const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL } = getRequiredEnv(

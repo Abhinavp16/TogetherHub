@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const roomController = require('../controllers/roomController');
 const auth = require('../middleware/auth');
+const validateObjectId = require('../middleware/validateObjectId');
 
+router.param('id', validateObjectId);
 router.use(auth);
 
 router.post('/', roomController.createRoom);

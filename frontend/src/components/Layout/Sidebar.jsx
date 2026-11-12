@@ -1,8 +1,37 @@
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Home, FileText, Code, PenTool, Users, TrendingUp, Shield, Video } from 'lucide-react'
+import { Home, FileText, Code, PenTool, Users, Shield, Video } from 'lucide-react'
+import { dashboardAPI } from '../../services/api'
+
+const WORKSPACE_ICONS = { document: FileText, code: Code, whiteboard: PenTool }
+
+const timeAgo = (date) => {
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(date).getTime()) / 1000))
+  if (seconds < 60) return 'just now'
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes} min${minutes === 1 ? '' : 's'} ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`
+  const days = Math.round(hours / 24)
+  return `${days} day${days === 1 ? '' : 's'} ago`
+}
 
 const Sidebar = () => {
   const location = useLocation()
+  const [recentWorkspaces, setRecentWorkspaces] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    dashboardAPI
+      .getSummary()
+      .then((response) => {
+        if (!cancelled) setRecentWorkspaces(response.data.recentWorkspaces.slice(0, 3))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [location.pathname])
 
   const menuItems = [
     { path: '/', icon: Home, label: 'Dashboard', gradient: 'from-blue-500 to-cyan-500' },
@@ -52,27 +81,27 @@ const Sidebar = () => {
 
         <div className="mt-auto pt-8">
           <div className="bg-slate-50 dark:bg-[#1e2330] rounded-3xl p-5 relative overflow-hidden group shadow-sm dark:shadow-xl border border-slate-200 dark:border-white/5 transition-colors duration-300">
-            <h4 className="font-bold text-slate-800 dark:text-white mb-4 text-[13px] uppercase tracking-[0.15em]">Activity Feed</h4>
-            <div className="space-y-4">
-              <div className="flex items-start space-x-3 text-sm">
-                <div className="w-[34px] h-[34px] rounded-full bg-emerald-100 dark:bg-[#15392b] flex items-center justify-center flex-shrink-0 mt-0.5 border border-emerald-200 dark:border-[#10b981]/20 transition-colors">
-                  <FileText size={15} className="text-emerald-600 dark:text-[#10b981]" />
-                </div>
-                <div>
-                  <p className="text-slate-800 dark:text-white font-medium leading-tight text-[14px]">Project Specs updated</p>
-                  <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1">2 mins ago by You</p>
-                </div>
+            <h4 className="font-bold text-slate-800 dark:text-white mb-4 text-[13px] uppercase tracking-[0.15em]">Recent Activity</h4>
+            {recentWorkspaces.length === 0 ? (
+              <p className="text-[13px] text-slate-500 dark:text-slate-400">Workspaces you edit will appear here.</p>
+            ) : (
+              <div className="space-y-4">
+                {recentWorkspaces.map((workspace) => {
+                  const Icon = WORKSPACE_ICONS[workspace.type] || FileText
+                  return (
+                    <Link key={workspace.id} to={workspace.joinPath} className="flex items-start space-x-3 text-sm group">
+                      <div className="w-[34px] h-[34px] rounded-full bg-blue-100 dark:bg-[#1e3a8a]/40 flex items-center justify-center flex-shrink-0 mt-0.5 border border-blue-200 dark:border-[#3b82f6]/20 transition-colors">
+                        <Icon size={15} className="text-blue-600 dark:text-[#3b82f6]" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-slate-800 dark:text-white font-medium leading-tight text-[14px] group-hover:underline">{workspace.title}</p>
+                        <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1">Updated {timeAgo(workspace.updatedAt)}</p>
+                      </div>
+                    </Link>
+                  )
+                })}
               </div>
-              <div className="flex items-start space-x-3 text-sm">
-                <div className="w-[34px] h-[34px] rounded-full bg-blue-100 dark:bg-[#1e3a8a]/40 flex items-center justify-center flex-shrink-0 mt-0.5 border border-blue-200 dark:border-[#3b82f6]/20 transition-colors">
-                  <Users size={15} className="text-blue-600 dark:text-[#3b82f6]" />
-                </div>
-                <div>
-                  <p className="text-slate-800 dark:text-white font-medium leading-tight text-[14px]">Sarah joined Team Alpha</p>
-                  <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1">1 hr ago</p>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </nav>

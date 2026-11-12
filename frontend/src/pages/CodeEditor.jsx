@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
 import { MonacoBinding } from 'y-monaco'
@@ -33,9 +33,20 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
+import { useOneTimeCreation } from '../hooks/useOneTimeCreation'
 import { documentAPI, getCollaborationUrl, publicCodeAPI } from '../services/api'
 import { copyTextToClipboard } from '../utils/clipboard'
 import '../utils/monacoSetup'
+import { runJavaScriptSandboxed } from '../utils/sandboxRunner'
+import LinkAccessControl from '../components/UI/LinkAccessControl'
+import {
+  buildGuestProfile,
+  createPresenceProfile,
+  extractPresence,
+  getCollaborationToken,
+  getInitials,
+  groupPresenceByUser
+} from '../utils/presence'
 import {
   bootstrapCodeWorkspace,
   createWorkspaceNodeId,
@@ -48,101 +59,12 @@ import {
   readWorkspaceSnapshot
 } from '../utils/codeWorkspace'
 
-const collaboratorColors = [
-  '#2563eb',
-  '#7c3aed',
-  '#db2777',
-  '#ea580c',
-  '#059669',
-  '#0891b2'
-]
-
-const buildGuestProfile = () => {
-  const storedName = localStorage.getItem('guestDisplayName')
-  const storedColor = localStorage.getItem('guestDisplayColor')
-
-  if (storedName && storedColor) {
-    return {
-      id: `guest-${storedName.toLowerCase().replace(/\s+/g, '-')}`,
-      name: storedName,
-      color: storedColor,
-      isGuest: true
-    }
-  }
-
-  const generatedName = `Guest ${Math.floor(1000 + Math.random() * 9000)}`
-  const generatedColor = collaboratorColors[Math.floor(Math.random() * collaboratorColors.length)]
-
-  localStorage.setItem('guestDisplayName', generatedName)
-  localStorage.setItem('guestDisplayColor', generatedColor)
-
-  return {
-    id: `guest-${generatedName.toLowerCase().replace(/\s+/g, '-')}`,
-    name: generatedName,
-    color: generatedColor,
-    isGuest: true
-  }
-}
-
-const createPresenceProfile = (user, displayName) => {
-  if (user) {
-    const fallbackColor = collaboratorColors[String(user.id || user._id || user.email || user.name).length % collaboratorColors.length]
-
-    return {
-      id: user.id || user._id || user.email,
-      name: displayName || user.name,
-      color: fallbackColor,
-      avatar: user.avatar || '',
-      isGuest: false
-    }
-  }
-
-  const guestProfile = buildGuestProfile()
-
-  return {
-    ...guestProfile,
-    name: displayName || guestProfile.name
-  }
-}
-
-const extractPresence = (awareness) => {
-  if (!awareness) {
-    return []
-  }
-
-  return Array.from(awareness.getStates().entries())
-    .map(([clientId, state]) => {
-      if (!state.user) {
-        return null
-      }
-
-      return {
-        clientId,
-        ...state.user
-      }
-    })
-    .filter(Boolean)
-}
-
 const setProviderPresence = (provider, profile) => {
   if (!provider) {
     return
   }
 
   provider.setAwarenessField('user', profile)
-}
-
-const getInitials = (name) => {
-  const segments = String(name || '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-
-  if (segments.length === 0) {
-    return '?'
-  }
-
-  return segments.map((segment) => segment.charAt(0).toUpperCase()).join('')
 }
 
 const defaultWorkspaceSnapshot = {
@@ -204,47 +126,36 @@ const CodeEditor = () => {
   const presenceProfile = useMemo(() => createPresenceProfile(user, displayName), [displayName, user])
 
   useEffect(() => {
-    if (roomId !== 'new') {
-      return undefined
-    }
-
-    if (authLoading) {
-      return undefined
-    }
-
-    if (!user) {
+    if (roomId === 'new' && !authLoading && !user) {
       toast.error('Please log in to create a new code workspace')
       navigate('/login', { replace: true })
-      return undefined
     }
+  }, [authLoading, navigate, roomId, user])
 
-    let cancelled = false
-
-    const createWorkspace = async () => {
-      try {
-        const response = await documentAPI.createDocument({
+  useOneTimeCreation(
+    roomId === 'new' && !authLoading && Boolean(user),
+    useCallback(
+      async (isMounted) => {
+        try {
+          const response = await documentAPI.createDocument({
           title: 'Untitled Code Workspace',
           content: getDefaultCodeTemplate('javascript'),
           type: 'code',
-          language: 'javascript',
-          shareAccess: 'link'
+          language: 'javascript'
         })
-
-        if (!cancelled) {
-          navigate(`/code/${response.data._id}`, { replace: true })
+          if (isMounted()) {
+            navigate(`/code/${response.data._id}`, { replace: true })
+          }
+        } catch (error) {
+          toast.error(error.response?.data?.message || 'Failed to create code workspace')
+          if (isMounted()) {
+            navigate('/', { replace: true })
+          }
         }
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to create code workspace')
-        navigate('/', { replace: true })
-      }
-    }
-
-    createWorkspace()
-
-    return () => {
-      cancelled = true
-    }
-  }, [authLoading, navigate, roomId, user])
+      },
+      [navigate]
+    )
+  )
 
   useEffect(() => {
     if (!roomId || roomId === 'new') {
@@ -280,8 +191,11 @@ const CodeEditor = () => {
     }
   }, [roomId])
 
+  const documentId = documentMeta?._id
+  const canEditWorkspace = documentMeta?.role === 'owner' || documentMeta?.role === 'editor'
+
   useEffect(() => {
-    if (!roomId || roomId === 'new' || !documentMeta) {
+    if (!roomId || roomId === 'new' || !documentId) {
       return undefined
     }
 
@@ -292,7 +206,8 @@ const CodeEditor = () => {
       url: getCollaborationUrl(),
       name: roomId,
       document: ydoc,
-      token: null,
+      token: getCollaborationToken(),
+      onAuthenticationFailed: () => setConnectionStatus('denied'),
       onOpen: () => setConnectionStatus('connecting'),
       onConnect: () => setConnectionStatus('connected'),
       onDisconnect: () => setConnectionStatus('disconnected'),
@@ -332,7 +247,7 @@ const CodeEditor = () => {
       setPresenceUsers([])
       setProviderReady(false)
     }
-  }, [documentMeta, presenceProfile, roomId])
+  }, [documentId, presenceProfile, roomId])
 
   useEffect(() => {
     const provider = collaborationRef.current?.provider
@@ -351,7 +266,7 @@ const CodeEditor = () => {
       return
     }
 
-    if (documentMeta.hasCollaborationState) {
+    if (documentMeta.hasCollaborationState || !canEditWorkspace) {
       bootstrapRef.current = true
       return
     }
@@ -470,7 +385,7 @@ const CodeEditor = () => {
     }
   }, [])
 
-  const activeCollaborators = presenceUsers.length ? presenceUsers : [presenceProfile]
+  const activeCollaborators = groupPresenceByUser(presenceUsers.length ? presenceUsers : [presenceProfile])
   const activeFile = activeFileId ? workspaceSnapshot.byId.get(activeFileId) : null
   const currentLanguage = activeFile?.language || documentMeta?.language || 'javascript'
   const isConnected = connectionStatus === 'connected'
@@ -526,6 +441,11 @@ const CodeEditor = () => {
   }
 
   const withWorkspaceTransaction = (callback) => {
+    if (!canEditWorkspace) {
+      toast.error('You only have view access to this workspace')
+      return
+    }
+
     if (!collaborationSession) {
       toast.error('Collaboration session is not ready yet')
       return
@@ -751,7 +671,7 @@ const CodeEditor = () => {
     }
   }
 
-  const handleRun = () => {
+  const handleRun = async () => {
     if (!activeFileId) {
       toast.error('Create or open a file first')
       return
@@ -760,51 +680,24 @@ const CodeEditor = () => {
     const source = editorRef.current?.getValue?.() ?? workspaceSnapshot.fileContents[activeFileId] ?? ''
     setShowBottomPanel(true)
     setActiveTab('output')
-    setOutput([])
 
     const timestamp = new Date().toLocaleTimeString()
+    setOutput([{ type: 'info', message: `[${timestamp}] Running ${currentLanguage} code...` }])
 
-    try {
-      const logs = []
-      const originalLog = console.log
-      const originalError = console.error
-      const originalWarn = console.warn
-
-      console.log = (...args) => {
-        logs.push({ type: 'log', message: args.join(' ') })
-        originalLog(...args)
-      }
-      console.error = (...args) => {
-        logs.push({ type: 'error', message: args.join(' ') })
-        originalError(...args)
-      }
-      console.warn = (...args) => {
-        logs.push({ type: 'warn', message: args.join(' ') })
-        originalWarn(...args)
-      }
-
-      setOutput([{ type: 'info', message: `[${timestamp}] Running ${currentLanguage} code...` }])
-
-      if (currentLanguage === 'javascript') {
-        eval(source)
-        console.log = originalLog
-        console.error = originalError
-        console.warn = originalWarn
-
-        if (logs.length > 0) {
-          setOutput((current) => [...current, ...logs, { type: 'success', message: `[${timestamp}] Execution completed successfully.` }])
-        } else {
-          setOutput((current) => [...current, { type: 'success', message: `[${timestamp}] Code executed successfully (no output).` }])
-        }
-      } else {
-        console.log = originalLog
-        console.error = originalError
-        console.warn = originalWarn
-        setOutput((current) => [...current, { type: 'warn', message: `Browser execution is only enabled for JavaScript. ${currentLanguage} stays local for editing and sharing.` }])
-      }
-    } catch (error) {
-      setOutput((current) => [...current, { type: 'error', message: `Error: ${error.message}` }])
+    if (currentLanguage !== 'javascript') {
+      setOutput((current) => [
+        ...current,
+        { type: 'warn', message: `Only JavaScript can run in the browser sandbox. ${currentLanguage} stays available for editing and sharing.` }
+      ])
+      return
     }
+
+    const result = await runJavaScriptSandboxed(source)
+    const summary = result.ok
+      ? { type: 'success', message: result.logs.length ? `[${timestamp}] Execution completed successfully.` : `[${timestamp}] Code executed successfully (no output).` }
+      : { type: 'error', message: `Error: ${result.error}` }
+
+    setOutput((current) => [...current, ...result.logs, summary])
   }
 
   const handleTerminalSubmit = (event) => {
@@ -875,7 +768,7 @@ const CodeEditor = () => {
               <span className="truncate text-sm">{item.name}</span>
             </button>
 
-            <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className={`flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 ${canEditWorkspace ? '' : 'hidden'}`}>
               {isFolder && (
                 <>
                   <button
@@ -1000,7 +893,7 @@ const CodeEditor = () => {
             <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-md ${theme === 'vs-dark' ? 'bg-[#3c3c3c]' : 'bg-gray-100'}`}>
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
               <span className={`text-xs font-medium ${theme === 'vs-dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                {isConnected ? 'Live sync connected' : 'Connecting'}
+                {isConnected ? 'Live sync connected' : connectionStatus === 'denied' ? 'Access denied' : 'Connecting'}
               </span>
             </div>
 
@@ -1063,6 +956,15 @@ const CodeEditor = () => {
               <Save size={16} />
               <span>Saved Live</span>
             </button>
+
+            <LinkAccessControl
+              role={documentMeta.role}
+              linkAccess={documentMeta.linkAccess}
+              onChange={async (linkAccess) => {
+                const response = await publicCodeAPI.updateDocument(roomId, { linkAccess })
+                setDocumentMeta((current) => ({ ...current, ...response.data }))
+              }}
+            />
 
             <button
               onClick={handleShare}
@@ -1180,6 +1082,7 @@ const CodeEditor = () => {
                   </div>
                 }
                 options={{
+                  readOnly: !canEditWorkspace,
                   fontSize,
                   minimap: { enabled: true },
                   scrollBeyondLastLine: false,

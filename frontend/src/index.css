@@ -1049,6 +1049,19 @@
   padding-left: 1.5rem;
 }
 
+/* Tailwind's preflight removes list markers; restore them inside the editor. */
+.document-tiptap ul {
+  list-style-type: disc;
+}
+
+.document-tiptap ol {
+  list-style-type: decimal;
+}
+
+.document-tiptap ul ul {
+  list-style-type: circle;
+}
+
 .document-tiptap blockquote {
   margin: 1.5rem 0;
   border-left: 4px solid rgba(59, 130, 246, 0.28);

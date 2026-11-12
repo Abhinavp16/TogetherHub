@@ -45,7 +45,8 @@ cd ../frontend && npm install
 # 2. Create environment files
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
-# then set JWT_SECRET in backend/.env to a long random string
+# then set JWT_SECRET in backend/.env to a random string of at least 16 characters,
+# for example: openssl rand -hex 32  (the server refuses to start without it)
 
 # 3. (Optional) create the demo account used by "Use Demo Credentials" on the login page
 cd backend && npm run seed:demo
@@ -58,6 +59,15 @@ cd frontend && npm run dev
 ```
 
 Open http://localhost:3000.
+
+### Run everything with Docker
+
+```bash
+cp .env.example .env   # set JWT_SECRET; on macOS set API_PORT=5050
+docker compose up --build
+```
+
+This starts MongoDB, the API and collaboration server, and the built web app on http://localhost:3000.
 
 ### macOS: port 5000 is taken
 
@@ -75,7 +85,8 @@ macOS uses port 5000 for the AirPlay Receiver. Either turn it off (System Settin
 | `PORT` | API port (default `5000`) |
 | `CLIENT_URL` | Frontend URL, used for CORS and OAuth redirects (default `http://localhost:3000`) |
 | `MONGODB_URI` | MongoDB connection string |
-| `JWT_SECRET` | Secret used to sign login tokens — **must be set** |
+| `JWT_SECRET` | Secret used to sign login tokens — **required**, at least 16 characters |
+| `JWT_EXPIRES_IN` | How long a login stays valid (default `7d`; e.g. `12h`, `30d`) |
 | `COLLAB_PORT` / `COLLAB_HOST` | Hocuspocus server port and bind address |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL` | Optional Google sign-in |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `GITHUB_CALLBACK_URL` | Optional GitHub sign-in |
@@ -99,13 +110,29 @@ macOS uses port 5000 for the AirPlay Receiver. Either turn it off (System Settin
 | `frontend` | `npm run dev` | Start the Vite dev server |
 | `frontend` | `npm run build` | Production build into `frontend/dist` |
 | `frontend` | `npm run preview` | Serve the production build locally |
+| `backend`, `frontend` | `npm test` | Unit and integration tests (Vitest) |
+| `backend`, `frontend` | `npm run lint` | ESLint |
+| `backend`, `frontend` | `npm run format` | Prettier |
+| repo root | `npm run test:e2e` | End-to-end tests in a real browser (Playwright) |
+
+## Testing
+
+- **Backend** (`backend/tests`): unit tests for configuration and the room-workspace helpers, plus integration tests that run the real API and collaboration server against an in-memory MongoDB. No local database is needed.
+- **Frontend** (`src/**/*.test.js(x)`): unit tests for the code-workspace and whiteboard logic, and component tests.
+- **End-to-end** (`e2e/`): two separate browsers edit the same document, code workspace and whiteboard and must see each other's changes. Requires MongoDB running on `localhost:27017` (it uses a separate `togetherhub_e2e` database). Install the browser once with `npx playwright install chromium` from the repo root, after `npm install` in the root, `backend` and `frontend`.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint, all tests, the production build and the end-to-end tests on every push and pull request.
 
 ## Project structure
 
 ```
 backend/
-  server.js               Express app, Socket.io (meetings), starts both servers
+  server.js               Entry point: starts the HTTP API, Socket.io and collaboration server
+  app.js                  Express app (routes and middleware), importable by tests
+  config.js               Validated environment configuration
   collaborationServer.js  Hocuspocus server + MongoDB persistence
+  sockets/                Meeting signalling and chat (Socket.io)
+  tests/                  Unit and integration tests
   controllers/ routes/ models/ middleware/ utils/
 frontend/src/
   pages/                  Dashboard, rooms, team, and the four workspace editors
@@ -119,9 +146,6 @@ frontend/src/
 
 This project is under active development. Current gaps:
 
-- The collaboration server does not yet check who is connecting; anyone with a workspace link can edit it.
-- Private rooms' workspaces cannot be opened yet.
+- Code execution runs JavaScript only, in an isolated browser sandbox; other languages need a server-side runner.
 - Team roles (editor/viewer) are not enforced on rooms or workspaces.
-- Some dashboard widgets (search, activity feed, presence avatars) still show placeholder data.
 - Video calls use a peer-to-peer mesh with public STUN servers only, so they suit small groups and may fail behind strict firewalls.
-- There is no automated test suite yet.

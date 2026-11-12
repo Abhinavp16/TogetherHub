@@ -4,6 +4,14 @@ import { authAPI } from '../services/api'
 
 const AuthContext = createContext(null)
 
+const readCachedUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || 'null')
+  } catch {
+    return null
+  }
+}
+
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
@@ -23,9 +31,19 @@ export const AuthProvider = ({ children }) => {
         try {
           const response = await authAPI.getMe()
           setUser(response.data)
+          localStorage.setItem('user', JSON.stringify(response.data))
         } catch (error) {
-          localStorage.removeItem('authToken')
-          localStorage.removeItem('user')
+          if (error.response?.status === 401) {
+            // The token is invalid or expired: sign out.
+            localStorage.removeItem('authToken')
+            localStorage.removeItem('user')
+          } else {
+            // Server unreachable or temporarily failing: stay signed in with the cached profile.
+            const cachedUser = readCachedUser()
+            if (cachedUser) {
+              setUser(cachedUser)
+            }
+          }
         }
       }
       setLoading(false)

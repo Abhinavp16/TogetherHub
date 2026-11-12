@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import toast from 'react-hot-toast'
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { roomAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
+import { useOneTimeCreation } from '../hooks/useOneTimeCreation'
 import { copyTextToClipboard } from '../utils/clipboard'
 
 const rtcConfiguration = {
@@ -240,9 +241,13 @@ const MeetingRoom = () => {
     peerConnectionsRef.current[peerId] = peerConnection
 
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => {
+      const outgoingVideo = screenStreamRef.current?.getVideoTracks()[0] || cameraTrackRef.current
+      localStreamRef.current.getAudioTracks().forEach((track) => {
         peerConnection.addTrack(track, localStreamRef.current)
       })
+      if (outgoingVideo) {
+        peerConnection.addTrack(outgoingVideo, localStreamRef.current)
+      }
     }
 
     peerConnection.onicecandidate = (event) => {
@@ -277,7 +282,7 @@ const MeetingRoom = () => {
     }
 
     peerConnection.onconnectionstatechange = () => {
-      if (['failed', 'disconnected', 'closed'].includes(peerConnection.connectionState)) {
+      if (['failed', 'closed'].includes(peerConnection.connectionState)) {
         removePeer(peerId)
       }
     }
@@ -396,27 +401,31 @@ const MeetingRoom = () => {
     setMessageInput('')
   }
 
-  useEffect(() => {
-    if (!user || roomId !== 'new') return
-
-    const createMeetingRoom = async () => {
-      try {
-        const response = await roomAPI.createRoom({
-          name: 'Instant Meeting Room',
-          description: 'Quick video sync space',
-          type: 'video',
-          isPrivate: false,
-          invites: []
-        })
-        navigate(`/video/${response.data._id}`, { replace: true })
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to create meeting room')
-        navigate('/rooms')
-      }
-    }
-
-    createMeetingRoom()
-  }, [roomId, user, navigate])
+  useOneTimeCreation(
+    Boolean(user) && roomId === 'new',
+    useCallback(
+      async (isMounted) => {
+        try {
+          const response = await roomAPI.createRoom({
+            name: 'Instant Meeting Room',
+            description: 'Quick video sync space',
+            type: 'video',
+            isPrivate: false,
+            invites: []
+          })
+          if (isMounted()) {
+            navigate(`/video/${response.data._id}`, { replace: true })
+          }
+        } catch (error) {
+          toast.error(error.response?.data?.message || 'Failed to create meeting room')
+          if (isMounted()) {
+            navigate('/rooms')
+          }
+        }
+      },
+      [navigate]
+    )
+  )
 
   useEffect(() => {
     if (!user || !roomId || roomId === 'new') return
@@ -456,6 +465,7 @@ const MeetingRoom = () => {
     let cancelled = false
     const serverUrl = getSignalingUrl()
     const socket = io(serverUrl, {
+      auth: { token: localStorage.getItem('authToken') },
       autoConnect: false,
       transports: ['websocket', 'polling']
     })
@@ -472,6 +482,11 @@ const MeetingRoom = () => {
 
       socket.on('disconnect', () => {
         setIsConnected(false)
+      })
+
+      socket.on('meeting-error', ({ message }) => {
+        toast.error(message || 'Unable to join the meeting')
+        navigate('/rooms')
       })
 
       socket.on('connect_error', (error) => {

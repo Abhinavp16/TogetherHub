@@ -30,6 +30,8 @@ const isWorkspaceRoom = (room) => {
     return Object.prototype.hasOwnProperty.call(ROOM_DOCUMENT_TYPE_MAP, room.type);
 };
 
+const linkAccessForVisibility = (room) => (room.visibility === 'private' ? 'none' : 'edit');
+
 const getDocumentPayloadForRoom = (room) => {
     const ownerId = getRoomOwnerId(room);
     const collaboratorIds = getRoomMemberIds(room).filter((memberId) => memberId !== ownerId);
@@ -41,32 +43,29 @@ const getDocumentPayloadForRoom = (room) => {
         language: room.type === 'code' ? 'javascript' : undefined,
         owner: ownerId,
         collaborators: collaboratorIds,
-        shareAccess: room.visibility === 'private' ? 'private' : 'link',
+        linkAccess: linkAccessForVisibility(room),
         lastModified: new Date()
     };
 };
 
+// Keeps workspace collaborators equal to the room's members (minus the owner).
+// Title and link access belong to the workspace owner after creation and are not overwritten.
 const syncDocumentCollaborators = async (document, room) => {
     const ownerId = getRoomOwnerId(room);
     const desiredCollaborators = getRoomMemberIds(room).filter((memberId) => memberId !== ownerId);
     const currentCollaborators = (document.collaborators || []).map(normalizeId).filter(Boolean);
 
     const isSameLength = currentCollaborators.length === desiredCollaborators.length;
-    const hasSameCollaborators = isSameLength
-        && currentCollaborators.every((collaboratorId) => desiredCollaborators.includes(collaboratorId));
+    const hasSameCollaborators =
+        isSameLength && currentCollaborators.every((collaboratorId) => desiredCollaborators.includes(collaboratorId));
 
     if (!hasSameCollaborators) {
         document.collaborators = desiredCollaborators;
     }
 
-    const desiredShareAccess = room.visibility === 'private' ? 'private' : 'link';
-    if (document.shareAccess !== desiredShareAccess) {
-        document.shareAccess = desiredShareAccess;
-    }
-
-    const desiredTitle = room.name?.trim() || document.title;
-    if (desiredTitle && document.title !== desiredTitle) {
-        document.title = desiredTitle;
+    // Workspaces created before link permissions existed get one derived from the room once.
+    if (!document.linkAccess) {
+        document.linkAccess = linkAccessForVisibility(room);
     }
 
     if (document.isModified()) {
@@ -75,25 +74,45 @@ const syncDocumentCollaborators = async (document, room) => {
     }
 };
 
+// Creates a workspace and links it to the room only if the room still points at `expectedDocumentId`.
+// Concurrent requests race on that compare-and-set; losers delete their copy and adopt the winner's.
+const provisionWorkspace = async (room, expectedDocumentId) => {
+    const Room = require('../models/Room');
+    const document = await Document.create(getDocumentPayloadForRoom(room));
+    const linked = await Room.findOneAndUpdate(
+        { _id: room._id, documentId: expectedDocumentId },
+        { $set: { documentId: document._id } },
+        { new: true }
+    );
+
+    if (linked) {
+        room.documentId = document._id;
+    } else {
+        await Document.deleteOne({ _id: document._id });
+        const current = await Room.findById(room._id).select('documentId');
+        room.documentId = current?.documentId ?? null;
+    }
+
+    // The value now matches the database; don't let a later room.save() treat it as a change.
+    if (typeof room.unmarkModified === 'function') {
+        room.unmarkModified('documentId');
+    }
+    return room;
+};
+
 const ensureWorkspaceForRoom = async (room) => {
     if (!room || !isWorkspaceRoom(room)) {
         return room;
     }
 
     if (!room.documentId) {
-        const document = await Document.create(getDocumentPayloadForRoom(room));
-        room.documentId = document._id;
-        await room.save();
-        return room;
+        return provisionWorkspace(room, null);
     }
 
     const document = await Document.findById(room.documentId);
 
     if (!document) {
-        const recreatedDocument = await Document.create(getDocumentPayloadForRoom(room));
-        room.documentId = recreatedDocument._id;
-        await room.save();
-        return room;
+        return provisionWorkspace(room, room.documentId);
     }
 
     await syncDocumentCollaborators(document, room);

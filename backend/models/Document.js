@@ -28,10 +28,16 @@ const documentSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     }],
+    // Legacy flag kept for workspaces created before link permissions; see utils/permissions.js.
     shareAccess: {
         type: String,
         enum: ['link', 'private'],
         default: 'link'
+    },
+    // What someone who only has the link may do: nothing, view, or edit.
+    linkAccess: {
+        type: String,
+        enum: ['none', 'view', 'edit']
     },
     yjsState: {
         type: Buffer,

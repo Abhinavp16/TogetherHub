@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Eraser, Loader2, Palette, Pen, Save, Share, Trash2 } from 'lucide-react'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import * as Y from 'yjs'
 import toast from 'react-hot-toast'
 import { useAuth } from '../contexts/AuthContext'
+import { useOneTimeCreation } from '../hooks/useOneTimeCreation'
 import { documentAPI, getCollaborationUrl, publicWhiteboardAPI } from '../services/api'
 import { copyTextToClipboard } from '../utils/clipboard'
+import LinkAccessControl from '../components/UI/LinkAccessControl'
 import {
   clampPoint,
   createStrokeId,
+  defaultPenColor,
   drawCursor,
   drawStroke,
   getStrokeComposite,
@@ -17,79 +20,13 @@ import {
   readWhiteboardStrokes,
   whiteboardColors
 } from '../utils/whiteboardCollaboration'
-
-const collaboratorColors = [
-  '#2563eb',
-  '#7c3aed',
-  '#db2777',
-  '#ea580c',
-  '#059669',
-  '#0891b2'
-]
-
-const buildGuestProfile = () => {
-  const storedName = localStorage.getItem('guestDisplayName')
-  const storedColor = localStorage.getItem('guestDisplayColor')
-
-  if (storedName && storedColor) {
-    return {
-      id: `guest-${storedName.toLowerCase().replace(/\s+/g, '-')}`,
-      name: storedName,
-      color: storedColor,
-      isGuest: true
-    }
-  }
-
-  const generatedName = `Guest ${Math.floor(1000 + Math.random() * 9000)}`
-  const generatedColor = collaboratorColors[Math.floor(Math.random() * collaboratorColors.length)]
-
-  localStorage.setItem('guestDisplayName', generatedName)
-  localStorage.setItem('guestDisplayColor', generatedColor)
-
-  return {
-    id: `guest-${generatedName.toLowerCase().replace(/\s+/g, '-')}`,
-    name: generatedName,
-    color: generatedColor,
-    isGuest: true
-  }
-}
-
-const createPresenceProfile = (user) => {
-  if (user) {
-    const fallbackColor = collaboratorColors[String(user.id || user._id || user.email || user.name).length % collaboratorColors.length]
-
-    return {
-      id: user.id || user._id || user.email,
-      name: user.name,
-      color: fallbackColor,
-      avatar: user.avatar || '',
-      isGuest: false
-    }
-  }
-
-  return buildGuestProfile()
-}
-
-const extractPresence = (awareness) => {
-  if (!awareness) {
-    return []
-  }
-
-  return Array.from(awareness.getStates().entries())
-    .map(([clientId, state]) => {
-      if (!state.user) {
-        return null
-      }
-
-      return {
-        clientId,
-        ...state.user,
-        cursor: state.cursor || null,
-        draftStroke: state.draftStroke || null
-      }
-    })
-    .filter(Boolean)
-}
+import {
+  createPresenceProfile,
+  extractPresence,
+  getCollaborationToken,
+  getInitials,
+  groupPresenceByUser
+} from '../utils/presence'
 
 const setProviderPresence = (provider, field, value) => {
   if (!provider) {
@@ -97,16 +34,6 @@ const setProviderPresence = (provider, field, value) => {
   }
 
   provider.setAwarenessField(field, value)
-}
-
-const getInitials = (name) => {
-  const parts = String(name || '').split(/\s+/).filter(Boolean).slice(0, 2)
-
-  if (parts.length === 0) {
-    return '?'
-  }
-
-  return parts.map((part) => part.charAt(0).toUpperCase()).join('')
 }
 
 const tools = [
@@ -122,6 +49,9 @@ const Whiteboard = () => {
   const canvasRef = useRef(null)
   const boardRef = useRef(null)
   const collaborationRef = useRef(null)
+  // Live-stroke deltas: what this client has already published, and what remote clients have sent.
+  const draftPublishRef = useRef({ id: null, sent: 0 })
+  const remoteDraftsRef = useRef(new Map())
   const drawingRef = useRef({
     isDrawing: false,
     points: [],
@@ -133,7 +63,7 @@ const Whiteboard = () => {
   const [connectionStatus, setConnectionStatus] = useState('connecting')
   const [presenceUsers, setPresenceUsers] = useState([])
   const [tool, setTool] = useState('pen')
-  const [color, setColor] = useState('#111827')
+  const [color, setColor] = useState(defaultPenColor)
   const [strokeWidth, setStrokeWidth] = useState(4)
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [collaborationSession, setCollaborationSession] = useState(null)
@@ -144,46 +74,35 @@ const Whiteboard = () => {
   const presenceProfile = useMemo(() => createPresenceProfile(user), [user])
 
   useEffect(() => {
-    if (roomId !== 'new') {
-      return undefined
-    }
-
-    if (authLoading) {
-      return undefined
-    }
-
-    if (!user) {
+    if (roomId === 'new' && !authLoading && !user) {
       toast.error('Please log in to create a new whiteboard')
       navigate('/login', { replace: true })
-      return undefined
-    }
-
-    let cancelled = false
-
-    const createBoard = async () => {
-      try {
-        const response = await documentAPI.createDocument({
-          title: 'Untitled Whiteboard',
-          content: '',
-          type: 'whiteboard',
-          shareAccess: 'link'
-        })
-
-        if (!cancelled) {
-          navigate(`/whiteboard/${response.data._id}`, { replace: true })
-        }
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to create whiteboard')
-        navigate('/', { replace: true })
-      }
-    }
-
-    createBoard()
-
-    return () => {
-      cancelled = true
     }
   }, [authLoading, navigate, roomId, user])
+
+  useOneTimeCreation(
+    roomId === 'new' && !authLoading && Boolean(user),
+    useCallback(
+      async (isMounted) => {
+        try {
+          const response = await documentAPI.createDocument({
+          title: 'Untitled Whiteboard',
+          content: '',
+          type: 'whiteboard'
+        })
+          if (isMounted()) {
+            navigate(`/whiteboard/${response.data._id}`, { replace: true })
+          }
+        } catch (error) {
+          toast.error(error.response?.data?.message || 'Failed to create whiteboard')
+          if (isMounted()) {
+            navigate('/', { replace: true })
+          }
+        }
+      },
+      [navigate]
+    )
+  )
 
   useEffect(() => {
     if (!roomId || roomId === 'new') {
@@ -217,8 +136,41 @@ const Whiteboard = () => {
     }
   }, [roomId])
 
+  // Remote clients publish only the points added since their previous update, with the offset
+  // at which they start. Re-delivered chunks are idempotent because they overwrite from that offset.
+  const assembleRemoteDrafts = (awareness) => {
+    const drafts = remoteDraftsRef.current
+    const active = new Set()
+
+    awareness.getStates().forEach((state, clientId) => {
+      if (clientId === awareness.clientID) return
+      const draft = state.draftStroke
+      if (!draft || !Array.isArray(draft.points)) {
+        drafts.delete(clientId)
+        return
+      }
+
+      active.add(clientId)
+      const entry = drafts.get(clientId)
+      if (!entry || entry.id !== draft.id) {
+        drafts.set(clientId, { ...draft, points: [...draft.points] })
+        return
+      }
+
+      const offset = Math.min(Number(draft.offset) || 0, entry.points.length)
+      entry.points = entry.points.slice(0, offset).concat(draft.points)
+    })
+
+    drafts.forEach((_, clientId) => {
+      if (!active.has(clientId)) drafts.delete(clientId)
+    })
+  }
+
+  const documentId = documentMeta?._id
+  const canEditWorkspace = documentMeta?.role === 'owner' || documentMeta?.role === 'editor'
+
   useEffect(() => {
-    if (!roomId || roomId === 'new' || !documentMeta) {
+    if (!roomId || roomId === 'new' || !documentId) {
       return undefined
     }
 
@@ -229,13 +181,15 @@ const Whiteboard = () => {
       url: getCollaborationUrl(),
       name: roomId,
       document: ydoc,
-      token: null,
+      token: getCollaborationToken(),
+      onAuthenticationFailed: () => setConnectionStatus('denied'),
       onOpen: () => setConnectionStatus('connecting'),
       onConnect: () => setConnectionStatus('connected'),
       onDisconnect: () => setConnectionStatus('disconnected'),
       onClose: () => setConnectionStatus('disconnected'),
       onStatus: ({ status }) => setConnectionStatus(status),
       onAwarenessChange: () => {
+        assembleRemoteDrafts(provider.awareness)
         setPresenceUsers(extractPresence(provider.awareness))
         setAwarenessVersion((current) => current + 1)
       }
@@ -264,7 +218,7 @@ const Whiteboard = () => {
       setPresenceUsers([])
       setLocalDraftStroke(null)
     }
-  }, [documentMeta, presenceProfile, roomId])
+  }, [documentId, presenceProfile, roomId])
 
   useEffect(() => {
     const provider = collaborationRef.current?.provider
@@ -329,9 +283,9 @@ const Whiteboard = () => {
       drawStroke(context, stroke, canvas)
     })
 
-    presenceUsers.forEach((collaborator) => {
-      if (collaborator.id !== presenceProfile.id && collaborator.draftStroke?.points?.length) {
-        drawStroke(context, collaborator.draftStroke, canvas)
+    remoteDraftsRef.current.forEach((draft) => {
+      if (draft.points?.length) {
+        drawStroke(context, draft, canvas)
       }
     })
 
@@ -339,8 +293,9 @@ const Whiteboard = () => {
       drawStroke(context, localDraftStroke, canvas)
     }
 
+    const ownClientId = collaborationRef.current?.provider.awareness.clientID
     presenceUsers.forEach((collaborator) => {
-      if (collaborator.id !== presenceProfile.id) {
+      if (collaborator.clientId !== ownClientId) {
         drawCursor(context, collaborator.cursor, canvas, collaborator.color || '#2563eb', collaborator.name)
       }
     })
@@ -366,7 +321,19 @@ const Whiteboard = () => {
       return
     }
 
-    setProviderPresence(provider, 'draftStroke', draftStroke)
+    if (!draftStroke) {
+      draftPublishRef.current = { id: null, sent: 0 }
+      setProviderPresence(provider, 'draftStroke', null)
+      return
+    }
+
+    const published = draftPublishRef.current.id === draftStroke.id ? draftPublishRef.current : { id: draftStroke.id, sent: 0 }
+    setProviderPresence(provider, 'draftStroke', {
+      ...draftStroke,
+      offset: published.sent,
+      points: draftStroke.points.slice(published.sent)
+    })
+    draftPublishRef.current = { id: draftStroke.id, sent: draftStroke.points.length }
   }
 
   const drawSegment = (fromPoint, toPoint, activeTool, activeColor, activeWidth) => {
@@ -392,7 +359,7 @@ const Whiteboard = () => {
   }
 
   const startDrawing = (event) => {
-    if (!canvasRef.current) {
+    if (!canvasRef.current || !canEditWorkspace) {
       return
     }
 
@@ -409,8 +376,9 @@ const Whiteboard = () => {
       x: event.clientX - rect.left,
       y: event.clientY - rect.top
     }
+    const draftId = `draft-${createStrokeId()}`
     const draftStroke = {
-      id: `${presenceProfile.id}-draft`,
+      id: draftId,
       tool,
       color: tool === 'eraser' ? '#ffffff' : color,
       width: Number(strokeWidth),
@@ -420,6 +388,7 @@ const Whiteboard = () => {
 
     drawingRef.current = {
       isDrawing: true,
+      draftId,
       points: [point],
       lastCanvasPoint: canvasPoint
     }
@@ -457,13 +426,13 @@ const Whiteboard = () => {
     const previousCanvasPoint = drawingRef.current.lastCanvasPoint || canvasPoint
     const nextPoints = [...drawingRef.current.points, point]
     drawingRef.current = {
-      isDrawing: true,
+      ...drawingRef.current,
       points: nextPoints,
       lastCanvasPoint: canvasPoint
     }
 
     const draftStroke = {
-      id: `${presenceProfile.id}-draft`,
+      id: drawingRef.current.draftId,
       tool,
       color: tool === 'eraser' ? '#ffffff' : color,
       width: Number(strokeWidth),
@@ -531,7 +500,7 @@ const Whiteboard = () => {
   }
 
   const clearBoard = () => {
-    if (!collaborationSession) {
+    if (!collaborationSession || !canEditWorkspace) {
       return
     }
 
@@ -600,8 +569,8 @@ const Whiteboard = () => {
   return (
     <div className="h-full p-4">
       <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.8rem] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.12),_transparent_24%),linear-gradient(180deg,_rgba(15,23,42,0.98),_rgba(15,23,42,1))] shadow-[0_30px_80px_-40px_rgba(0,0,0,1)]">
-        <div className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-4">
-          <div className="flex min-w-0 items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Shared Whiteboard</p>
               <h2 className="truncate text-xl font-semibold text-white">{documentMeta.title || 'Untitled Whiteboard'}</h2>
@@ -659,17 +628,20 @@ const Whiteboard = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm text-slate-300">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <div className="whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm text-slate-300">
               <span className={`mr-2 inline-block h-2 w-2 rounded-full ${connectionStatus === 'connected' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-              {connectionStatus === 'connected' ? 'Live sync connected' : 'Connecting'}
+              {connectionStatus === 'connected' ? 'Live sync connected' : connectionStatus === 'denied' ? 'Access denied' : 'Connecting'}
             </div>
+            {!canEditWorkspace && (
+              <div className="whitespace-nowrap rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm text-slate-300">View only</div>
+            )}
 
             <div className="flex items-center gap-2">
               <div className="flex -space-x-2">
-                {presenceUsers.slice(0, 4).map((collaborator) => (
+                {groupPresenceByUser(presenceUsers).slice(0, 4).map((collaborator) => (
                   <div
-                    key={`${collaborator.clientId}-${collaborator.name}`}
+                    key={collaborator.id}
                     className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-slate-900 text-[11px] font-semibold text-white"
                     style={{ backgroundColor: collaborator.color }}
                     title={collaborator.id === presenceProfile.id ? `${collaborator.name} (You)` : collaborator.name}
@@ -678,14 +650,24 @@ const Whiteboard = () => {
                   </div>
                 ))}
               </div>
-              <span className="text-sm text-slate-400">
-                {presenceUsers.length || 1} collaborator{(presenceUsers.length || 1) > 1 ? 's' : ''}
+              <span className="whitespace-nowrap text-sm text-slate-400">
+                {groupPresenceByUser(presenceUsers).length || 1} collaborator{(groupPresenceByUser(presenceUsers).length || 1) > 1 ? 's' : ''}
               </span>
             </div>
+
+            <LinkAccessControl
+              role={documentMeta.role}
+              linkAccess={documentMeta.linkAccess}
+              onChange={async (linkAccess) => {
+                const response = await publicWhiteboardAPI.updateDocument(roomId, { linkAccess })
+                setDocumentMeta((current) => ({ ...current, ...response.data }))
+              }}
+            />
 
             <button
               type="button"
               onClick={clearBoard}
+              disabled={!canEditWorkspace}
               className="inline-flex items-center gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
             >
               <Trash2 size={16} />
@@ -719,7 +701,7 @@ const Whiteboard = () => {
         <div ref={boardRef} className="relative min-h-0 flex-1 overflow-hidden rounded-[1.4rem] border-t border-white/5 bg-[linear-gradient(180deg,_rgba(15,23,42,0.35),_rgba(15,23,42,0.18)),linear-gradient(90deg,_rgba(255,255,255,0.04)_1px,_transparent_1px),linear-gradient(180deg,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:auto,32px_32px,32px_32px]">
           <canvas
             ref={canvasRef}
-            className="absolute inset-0 h-full w-full cursor-crosshair touch-none"
+            className={`absolute inset-0 h-full w-full touch-none ${canEditWorkspace ? 'cursor-crosshair' : 'cursor-default'}`}
             onPointerDown={startDrawing}
             onPointerMove={draw}
             onPointerUp={stopDrawing}

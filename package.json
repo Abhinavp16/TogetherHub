@@ -1,0 +1,20 @@
+{
+  "name": "togetherhub",
+  "description": "TogetherHub monorepo tooling (end-to-end tests)",
+  "scripts": {
+    "test:e2e": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abhinavp16/TogetherHub.git"
+  },
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Abhinavp16/TogetherHub/issues"
+  },
+  "homepage": "https://github.com/Abhinavp16/TogetherHub#readme",
+  "private": "true",
+  "devDependencies": {
+    "@playwright/test": "1.63"
+  }
+}

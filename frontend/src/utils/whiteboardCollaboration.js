@@ -1,5 +1,8 @@
+// The board is dark, so the default pen is near-white (the old default, #111827, was invisible).
+export const defaultPenColor = '#f8fafc'
+
 export const whiteboardColors = [
-  '#111827',
+  defaultPenColor,
   '#ef4444',
   '#22c55e',
   '#3b82f6',
@@ -44,7 +47,7 @@ export const drawStroke = (ctx, stroke, canvas) => {
   }
 
   const width = Number(stroke.width) || 2
-  const color = stroke.color || '#111827'
+  const color = stroke.color || defaultPenColor
   const points = stroke.points.map((point) => toCanvasPoint(point, canvas))
 
   ctx.save()

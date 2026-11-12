@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, X, FileText, Code, Palette, Users, Clock, Video } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { searchAPI } from '../../services/api'
+
+const ICONS = { document: FileText, code: Code, whiteboard: Palette, video: Video }
 
 const SearchModal = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState('')
@@ -9,34 +12,43 @@ const SearchModal = ({ isOpen, onClose }) => {
   const inputRef = useRef(null)
   const navigate = useNavigate()
 
-  // Mock search data - in a real app, this would come from an API
-  const searchData = [
-    { id: 1, title: 'Document Room - Project Planning', type: 'document', path: '/document/1', icon: FileText },
-    { id: 2, title: 'Code Room - React Components', type: 'code', path: '/code/2', icon: Code },
-    { id: 3, title: 'Whiteboard - System Architecture', type: 'whiteboard', path: '/whiteboard/3', icon: Palette },
-    { id: 4, title: 'Team Meeting Notes', type: 'document', path: '/document/4', icon: FileText },
-    { id: 5, title: 'API Development', type: 'code', path: '/code/5', icon: Code },
-    { id: 6, title: 'User Flow Diagram', type: 'whiteboard', path: '/whiteboard/6', icon: Palette },
-    { id: 7, title: 'Weekly Sync Meeting', type: 'video', path: '/video/new', icon: Video },
-  ]
-
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus()
     }
   }, [isOpen])
 
+  // Searches the user's real workspaces and rooms; an empty query shows recent items.
   useEffect(() => {
-    if (query.trim()) {
-      const filtered = searchData.filter(item =>
-        item.title.toLowerCase().includes(query.toLowerCase())
-      )
-      setResults(filtered)
-      setSelectedIndex(0)
-    } else {
-      setResults(searchData.slice(0, 6)) // Show recent items when no query
+    if (!isOpen) {
+      return undefined
     }
-  }, [query])
+
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const response = await searchAPI.search(query.trim())
+        if (!cancelled) {
+          setResults(
+            response.data.results.map((item) => ({
+              ...item,
+              icon: ICONS[item.type] || Users
+            }))
+          )
+          setSelectedIndex(0)
+        }
+      } catch {
+        if (!cancelled) {
+          setResults([])
+        }
+      }
+    }, 200)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [isOpen, query])
 
   const handleKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
@@ -121,7 +133,7 @@ const SearchModal = ({ isOpen, onClose }) => {
                     <div className="flex-1 text-left">
                       <div className="font-medium">{item.title}</div>
                       <div className="text-xs text-slate-500 dark:text-slate-400 capitalize">
-                        {item.type} room
+                        {item.kind === 'room' ? `${item.type} room` : `${item.type} workspace`}
                       </div>
                     </div>
                     <div className="text-xs text-slate-400 dark:text-slate-500">

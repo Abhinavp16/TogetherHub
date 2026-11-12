@@ -7,6 +7,6 @@ router.use(auth);
 
 router.get('/profile', userController.getProfile);
 router.put('/profile', userController.updateProfile);
-router.get('/', userController.getUsers);
+router.get('/lookup', userController.lookupUser);
 
 module.exports = router;

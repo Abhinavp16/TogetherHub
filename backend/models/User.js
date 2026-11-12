@@ -37,6 +37,17 @@ const userSchema = new mongoose.Schema({
     }
 });
 
+// Never expose secrets when a user document is serialised.
+userSchema.set('toJSON', {
+    transform: (doc, ret) => {
+        delete ret.password;
+        delete ret.googleId;
+        delete ret.githubId;
+        delete ret.__v;
+        return ret;
+    }
+});
+
 // Hash password before saving
 userSchema.pre('save', async function () {
     if (!this.isModified('password')) return;
